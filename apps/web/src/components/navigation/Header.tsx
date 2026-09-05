@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth';
-import { Package, LogOut, LogIn, Home, Shield, User } from 'lucide-react';
+import { Package, LogOut, LogIn, Home, Shield, User, MapPin } from 'lucide-react';
 
 export function Header() {
   const { user, activeHousehold, isAuthenticated, logout, isLoading } = useAuth();
@@ -51,7 +51,19 @@ export function Header() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
+        {isAuthenticated && (
+          <nav className="flex items-center gap-2">
+            <Link
+              href="/locations"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition"
+            >
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <span>Locations</span>
+            </Link>
+          </nav>
+        )}
+
         {isLoading ? (
           <div className="text-xs text-slate-400">Loading profile...</div>
         ) : isAuthenticated && user ? (

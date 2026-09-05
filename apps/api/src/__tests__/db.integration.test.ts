@@ -280,7 +280,15 @@ describe('Database & Domain Integrity Verification Suite', () => {
   // 5. Reparenting & Cycle Prevention Logic
   describe('Location Reparenting & Cycle Prevention Logic', () => {
     it('correctly detects cycle if attempting to reparent a node under its own descendant', async () => {
-      const [bb] = await db.select().from(locations).where(eq(locations.name, 'Big Bedroom'));
+      const [bb] = await db
+        .select()
+        .from(locations)
+        .where(
+          and(
+            eq(locations.name, 'Big Bedroom'),
+            eq(locations.householdId, mainHouseholdId)
+          )
+        );
       const [wardrobe] = await db
         .select()
         .from(locations)

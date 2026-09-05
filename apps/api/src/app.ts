@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './modules/health/health.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { householdsRouter } from './modules/households/households.routes';
+import { locationsRouter } from './modules/locations/locations.routes';
 import { AppError } from './utils/errors';
 
 export function createApp(): express.Application {
@@ -38,9 +39,10 @@ export function createApp(): express.Application {
   app.use('/health', healthRouter);
   app.use('/api/v1/health', healthRouter);
 
-  // Authentication and Household routes
+  // Core domain routes
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/households', householdsRouter);
+  app.use('/api/v1/locations', locationsRouter);
 
   // Catch-all 404 handler
   app.use((req, _res, next) => {

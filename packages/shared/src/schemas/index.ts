@@ -53,6 +53,10 @@ export const createLocationSchema = z.object({
 
 export const updateLocationSchema = createLocationSchema.partial();
 
+export const reparentLocationSchema = z.object({
+  newParentId: z.string().uuid().nullable(),
+});
+
 // Item Schemas
 export const dimensionsSchema = z.object({
   length: z.number().positive(),
@@ -138,6 +142,7 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateLocationInput = z.infer<typeof createLocationSchema>;
 export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
+export type ReparentLocationInput = z.infer<typeof reparentLocationSchema>;
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type MoveStockInput = z.infer<typeof moveStockSchema>;

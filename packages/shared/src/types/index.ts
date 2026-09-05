@@ -45,6 +45,60 @@ export interface LocationDto {
   children?: LocationDto[];
 }
 
+export interface LocationTreeItemDto extends LocationDto {
+  directItemCount: number;
+  subtreeItemCount: number;
+  directContainerCount: number;
+  subtreeContainerCount: number;
+  children: LocationTreeItemDto[];
+}
+
+export interface LocationBreadcrumbDto {
+  id: string;
+  name: string;
+  kind: LocationKind;
+  path: string;
+}
+
+export interface LocationDirectItemDto {
+  id: string;
+  placementId: string;
+  name: string;
+  displayName?: string | null;
+  quantity: number;
+  unit: ItemUnit;
+  isContainer: boolean;
+  categoryName?: string | null;
+  condition?: string | null;
+  notes?: string | null;
+  primaryImageUrl?: string | null;
+}
+
+export interface LocationDirectContainerDto {
+  id: string;
+  placementId: string;
+  name: string;
+  displayName?: string | null;
+  quantity: number;
+  unit: ItemUnit;
+  containedItemCount: number;
+  notes?: string | null;
+}
+
+export interface LocationDetailDto {
+  location: LocationDto;
+  breadcrumbs: LocationBreadcrumbDto[];
+  children: LocationTreeItemDto[];
+  directItems: LocationDirectItemDto[];
+  directContainers: LocationDirectContainerDto[];
+  summary: {
+    directItemCount: number;
+    subtreeItemCount: number;
+    directContainerCount: number;
+    subtreeContainerCount: number;
+  };
+}
+
 export interface ItemPlacementDto {
   id: string;
   itemId: string;
