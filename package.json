@@ -1,0 +1,25 @@
+{
+  "name": "home-inventory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-quality Home Inventory Management System",
+  "scripts": {
+    "dev": "pnpm --parallel run dev",
+    "dev:api": "pnpm --filter @home-inventory/api run dev",
+    "dev:web": "pnpm --filter @home-inventory/web run dev",
+    "build": "pnpm --recursive run build",
+    "test": "pnpm --recursive run test",
+    "test:unit": "pnpm --filter @home-inventory/shared run test && pnpm --filter @home-inventory/api run test:unit",
+    "test:api": "pnpm --filter @home-inventory/api run test:api",
+    "typecheck": "pnpm --recursive run typecheck",
+    "lint": "pnpm --recursive run lint",
+    "db:generate": "pnpm --filter @home-inventory/api run db:generate",
+    "db:migrate": "pnpm --filter @home-inventory/api run db:migrate",
+    "db:seed": "pnpm --filter @home-inventory/api run db:seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.2",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@11.25.0"
+}
