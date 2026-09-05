@@ -1,6 +1,18 @@
 import type { ApiErrorResponse, ApiSuccessResponse } from '@home-inventory/shared';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+export function buildApiUrl(endpoint: string): string {
+  if (endpoint.startsWith('http')) return endpoint;
+
+  const rawBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
+  const baseWithoutV1 = rawBase.endsWith('/api/v1') ? rawBase.slice(0, -'/api/v1'.length) : rawBase;
+
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const pathWithoutV1 = cleanEndpoint.startsWith('/api/v1')
+    ? cleanEndpoint.slice('/api/v1'.length)
+    : cleanEndpoint;
+
+  return `${baseWithoutV1}/api/v1${pathWithoutV1}`;
+}
 
 export class ApiClientError extends Error {
   public readonly code: string;
@@ -17,7 +29,7 @@ export async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiSuccessResponse<T>> {
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  const url = buildApiUrl(endpoint);
 
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',

@@ -39,19 +39,23 @@ export function setAuthCookies(
   refreshToken: string
 ): void {
   const isProduction = env.NODE_ENV === 'production';
+  // Cross-site cookies between Vercel (frontend) and Render (API) require SameSite=None and Secure=true.
+  // In development/test over localhost HTTP, SameSite=Lax and Secure=false is used.
+  const sameSite = env.COOKIE_SAME_SITE ?? (isProduction ? 'none' : 'lax');
+  const secure = env.COOKIE_SECURE ?? isProduction;
 
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    secure,
+    sameSite,
     maxAge: ACCESS_TOKEN_EXPIRY_MS,
     path: '/',
   });
 
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    secure,
+    sameSite,
     maxAge: REFRESH_TOKEN_EXPIRY_MS,
     path: '/api/v1/auth',
   });
@@ -59,18 +63,20 @@ export function setAuthCookies(
 
 export function clearAuthCookies(res: Response): void {
   const isProduction = env.NODE_ENV === 'production';
+  const sameSite = env.COOKIE_SAME_SITE ?? (isProduction ? 'none' : 'lax');
+  const secure = env.COOKIE_SECURE ?? isProduction;
 
   res.clearCookie('accessToken', {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    secure,
+    sameSite,
     path: '/',
   });
 
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    secure,
+    sameSite,
     path: '/api/v1/auth',
   });
 }

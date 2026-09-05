@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: home-inventory-api
+    runtime: node
+    plan: starter
+    region: oregon
+    rootDir: .
+    buildCommand: pnpm --filter @home-inventory/shared run build && pnpm --filter @home-inventory/api run build
+    startCommand: pnpm --filter @home-inventory/api run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Set in Render Dashboard: postgresql://...
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false # Set to your Vercel URL (e.g., https://home-inventory.vercel.app)
+      - key: WEB_URL
+        sync: false # Set to your Vercel URL (e.g., https://home-inventory.vercel.app)
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false

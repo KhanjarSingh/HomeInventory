@@ -6,8 +6,10 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env from root if available
+// Load .env from workspace root, cwd, or parent directories
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
 
 const envSchema = z.object({
@@ -16,6 +18,8 @@ const envSchema = z.object({
   API_URL: z.string().url().default('http://localhost:4000'),
   WEB_URL: z.string().url().default('http://localhost:3000'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  COOKIE_SAME_SITE: z.enum(['none', 'lax', 'strict']).optional(),
+  COOKIE_SECURE: z.coerce.boolean().optional(),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 chars').default('development_jwt_secret_key_12345'),
   REFRESH_TOKEN_SECRET: z.string().min(16).default('development_refresh_token_secret_12345'),

@@ -22,13 +22,34 @@ import { AppError } from './utils/errors';
 export function createApp(): express.Application {
   const app = express();
 
+  // Trust reverse proxy (Render, Cloudflare, AWS) for HTTPS cookies and accurate IPs
+  app.set('trust proxy', 1);
+
   // Security headers
   app.use(helmet());
 
-  // CORS configuration
+  // CORS configuration supporting production domains, comma-separated lists, and Vercel preview domains
+  const allowedOrigins = [
+    env.CORS_ORIGIN,
+    env.WEB_URL,
+    ...env.CORS_ORIGIN.split(',').map((s) => s.trim()),
+    ...env.WEB_URL.split(',').map((s) => s.trim()),
+  ].filter(Boolean);
+
   app.use(
     cors({
-      origin: [env.CORS_ORIGIN, env.WEB_URL],
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        // Allow Vercel preview and production deployments
+        if (origin.endsWith('.vercel.app')) return callback(null, true);
+        // If in development/test, allow localhost
+        if (env.NODE_ENV !== 'production' && origin.includes('localhost')) {
+          return callback(null, true);
+        }
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
