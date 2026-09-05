@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth';
-import { Package, LogOut, LogIn, Home, Shield, User, MapPin } from 'lucide-react';
+import { Package, LogOut, LogIn, Home, Shield, User, MapPin, Box } from 'lucide-react';
 
 export function Header() {
   const { user, activeHousehold, isAuthenticated, logout, isLoading } = useAuth();
@@ -60,6 +60,13 @@ export function Header() {
             >
               <MapPin className="w-4 h-4 text-blue-600" />
               <span>Locations</span>
+            </Link>
+            <Link
+              href="/containers"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-amber-600 hover:bg-slate-100 transition"
+            >
+              <Box className="w-4 h-4 text-amber-600" />
+              <span>Containers</span>
             </Link>
           </nav>
         )}

@@ -12,6 +12,7 @@ import type {
 } from '@home-inventory/shared';
 import { LocationFormModal } from '../../../components/locations/LocationFormModal';
 import { ReparentModal } from '../../../components/locations/ReparentModal';
+import { PlacementModal } from '../../../components/placements/PlacementModal';
 import {
   ChevronRight,
   DoorClosed,
@@ -95,6 +96,24 @@ export default function LocationDetailPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Placement / Move Modal State
+  const [placementModal, setPlacementModal] = useState<{
+    isOpen: boolean;
+    mode: 'place' | 'move';
+    item: { id: string; name: string; isContainer?: boolean; unit?: string; maxQuantity?: number };
+    currentPlacement?: {
+      id: string;
+      locationId: string | null;
+      containerItemId: string | null;
+      quantity: number;
+      notes?: string | null;
+    };
+  }>({
+    isOpen: false,
+    mode: 'move',
+    item: { id: '', name: '' },
+  });
 
   const canEdit = activeHousehold?.role === 'owner' || activeHousehold?.role === 'editor';
 
@@ -410,9 +429,39 @@ export default function LocationDetailPage() {
                       )}
                     </div>
                   </div>
-                  <span className="text-[11px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">
-                    {container.containedItemCount} items inside
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">
+                      {container.containedItemCount} items
+                    </span>
+                    {canEdit && (
+                      <button
+                        onClick={() =>
+                          setPlacementModal({
+                            isOpen: true,
+                            mode: 'move',
+                            item: {
+                              id: container.id,
+                              name: container.name,
+                              isContainer: true,
+                              unit: container.unit,
+                              maxQuantity: container.quantity,
+                            },
+                            currentPlacement: {
+                              id: container.placementId,
+                              locationId,
+                              containerItemId: null,
+                              quantity: container.quantity,
+                              notes: container.notes,
+                            },
+                          })
+                        }
+                        className="p-1.5 text-slate-400 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition"
+                        title="Move Box to another location or container"
+                      >
+                        <Move className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {container.notes && (
                   <p className="text-xs text-slate-500 italic">Notes: {container.notes}</p>
@@ -449,6 +498,7 @@ export default function LocationDetailPage() {
                   <th className="p-3">Quantity</th>
                   <th className="p-3">Condition</th>
                   <th className="p-3">Notes</th>
+                  {canEdit && <th className="p-3 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -479,6 +529,37 @@ export default function LocationDetailPage() {
                       )}
                     </td>
                     <td className="p-3 text-slate-500 max-w-xs truncate">{item.notes || '—'}</td>
+                    {canEdit && (
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() =>
+                            setPlacementModal({
+                              isOpen: true,
+                              mode: 'move',
+                              item: {
+                                id: item.id,
+                                name: item.name,
+                                isContainer: false,
+                                unit: item.unit,
+                                maxQuantity: item.quantity,
+                              },
+                              currentPlacement: {
+                                id: item.placementId,
+                                locationId,
+                                containerItemId: null,
+                                quantity: item.quantity,
+                                notes: item.notes,
+                              },
+                            })
+                          }
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg text-xs font-semibold transition"
+                          title="Move item to another room, shelf, or storage box"
+                        >
+                          <Move className="w-3 h-3" />
+                          <span>Move</span>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -566,6 +647,16 @@ export default function LocationDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Interactive Placement / Move Modal */}
+      <PlacementModal
+        isOpen={placementModal.isOpen}
+        onClose={() => setPlacementModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={loadData}
+        mode={placementModal.mode}
+        item={placementModal.item}
+        currentPlacement={placementModal.currentPlacement}
+      />
     </div>
   );
 }

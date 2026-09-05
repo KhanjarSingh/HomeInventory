@@ -104,6 +104,31 @@ export const updateItemSchema = createItemSchema.partial().extend({
 });
 
 // Movement & Placements
+export const createPlacementSchema = z
+  .object({
+    itemId: z.string().uuid('Invalid item ID'),
+    locationId: z.string().uuid('Invalid location ID').nullable().optional(),
+    containerItemId: z.string().uuid('Invalid container item ID').nullable().optional(),
+    quantity: z.number().positive('Placement quantity must be greater than 0'),
+    notes: z.string().max(500).nullable().optional(),
+  })
+  .refine(
+    (data) => (data.locationId && !data.containerItemId) || (!data.locationId && data.containerItemId),
+    { message: 'Placement destination must be either a Location OR a Container Item, not both.' }
+  );
+
+export const updatePlacementSchema = z.object({
+  quantity: z.number().positive('Quantity must be greater than 0').optional(),
+  notes: z.string().max(500).nullable().optional(),
+});
+
+export const movePlacementSchema = z.object({
+  destinationType: z.enum(['location', 'container']),
+  destinationId: z.string().uuid('Invalid destination ID'),
+  quantity: z.number().positive('Move quantity must be greater than 0').optional(),
+  notes: z.string().max(500).nullable().optional(),
+});
+
 export const moveStockSchema = z.object({
   fromLocationId: z.string().uuid().nullable().optional(),
   fromContainerItemId: z.string().uuid().nullable().optional(),
@@ -145,6 +170,9 @@ export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
 export type ReparentLocationInput = z.infer<typeof reparentLocationSchema>;
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
+export type CreatePlacementInput = z.infer<typeof createPlacementSchema>;
+export type UpdatePlacementInput = z.infer<typeof updatePlacementSchema>;
+export type MovePlacementInput = z.infer<typeof movePlacementSchema>;
 export type MoveStockInput = z.infer<typeof moveStockSchema>;
 export type AdjustQuantityInput = z.infer<typeof adjustQuantitySchema>;
 export type ConfirmImageUploadInput = z.infer<typeof confirmImageUploadSchema>;

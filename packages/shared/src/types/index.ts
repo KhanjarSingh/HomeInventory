@@ -127,6 +127,68 @@ export interface ItemPlacementDto {
   createdAt: string;
 }
 
+export interface PhysicalBreadcrumbSegmentDto {
+  type: 'location' | 'container' | 'item' | 'unplaced';
+  id: string;
+  name: string;
+  kind?: string | null;
+  color?: string | null;
+}
+
+export interface ResolvedPlacementDto {
+  id: string;
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  locationId: string | null;
+  containerItemId: string | null;
+  notes: string | null;
+  breadcrumbs: PhysicalBreadcrumbSegmentDto[];
+  breadcrumbString: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ItemLocationsSummaryDto {
+  itemId: string;
+  itemName: string;
+  totalQuantity: number;
+  placedQuantity: number;
+  unplacedQuantity: number;
+  unit: string;
+  isContainer: boolean;
+  placements: ResolvedPlacementDto[];
+}
+
+export interface ContainerSummaryDto {
+  id: string;
+  name: string;
+  displayName: string | null;
+  brand: string | null;
+  totalQuantity: number;
+  unit: string;
+  containedItemCount: number;
+  containedContainerCount: number;
+  currentPlacement: ResolvedPlacementDto | null;
+  breadcrumbs: PhysicalBreadcrumbSegmentDto[];
+  breadcrumbString: string;
+}
+
+export interface ContainerContentItemDto {
+  id: string;
+  placementId: string;
+  name: string;
+  displayName: string | null;
+  quantity: number;
+  unit: string;
+  isContainer: boolean;
+  containedItemCount?: number;
+  categoryName: string | null;
+  condition: string | null;
+  notes: string | null;
+}
+
 export interface ItemImageDto {
   id: string;
   itemId: string;

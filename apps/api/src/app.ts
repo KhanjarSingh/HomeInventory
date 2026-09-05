@@ -9,6 +9,11 @@ import { healthRouter } from './modules/health/health.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { householdsRouter } from './modules/households/households.routes';
 import { locationsRouter } from './modules/locations/locations.routes';
+import {
+  placementsRouter,
+  containersRouter,
+  itemLocationsRouter,
+} from './modules/placements/placements.routes';
 import { AppError } from './utils/errors';
 
 export function createApp(): express.Application {
@@ -43,6 +48,9 @@ export function createApp(): express.Application {
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/households', householdsRouter);
   app.use('/api/v1/locations', locationsRouter);
+  app.use('/api/v1/placements', placementsRouter);
+  app.use('/api/v1/containers', containersRouter);
+  app.use('/api/v1/items', itemLocationsRouter);
 
   // Catch-all 404 handler
   app.use((req, _res, next) => {
