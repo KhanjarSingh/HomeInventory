@@ -156,7 +156,7 @@ export function ProfileUnlock({ onSuccess }: ProfileUnlockProps) {
 
   // Auto-attempt authentication as soon as 4 digits are entered
   useEffect(() => {
-    if (!selectedProfile || pin.length !== 4 || isSubmitting) return;
+    if (!selectedProfile || pin.length !== 4) return;
 
     let isMounted = true;
     async function attemptUnlock() {
@@ -189,7 +189,8 @@ export function ProfileUnlock({ onSuccess }: ProfileUnlockProps) {
     return () => {
       isMounted = false;
     };
-  }, [pin, selectedProfile, login, onSuccess, isSubmitting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin, selectedProfile]);
 
   const activeTheme = selectedProfile ? getProfileTheme(selectedProfile.fullName) : null;
 
