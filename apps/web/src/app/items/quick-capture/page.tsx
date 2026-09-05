@@ -52,6 +52,7 @@ export default function QuickCapturePage() {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [unit, setUnit] = useState('pcs');
+  const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [destinationType, setDestinationType] = useState<'location' | 'container' | 'unplaced'>('location');
   const [selectedLocationId, setSelectedLocationId] = useState<string>('');
@@ -143,6 +144,7 @@ export default function QuickCapturePage() {
     setPhotoError(null);
     setName('');
     setQuantity(1);
+    setPrice('');
     setPlacementNotes('');
     setSaveError(null);
 
@@ -171,6 +173,14 @@ export default function QuickCapturePage() {
         categoryId: categoryId || undefined,
         placementNotes: placementNotes.trim() || undefined,
       };
+
+      if (price.trim()) {
+        const parsedPrice = parseFloat(price.trim());
+        if (!isNaN(parsedPrice) && parsedPrice >= 0) {
+          payload.purchasePrice = parsedPrice;
+          payload.currency = 'INR';
+        }
+      }
 
       if (uploadedImage) {
         payload.initialImage = uploadedImage;
@@ -223,6 +233,13 @@ export default function QuickCapturePage() {
             <p className="text-xs text-slate-500">
               {createdItem.totalQuantity} {createdItem.unit} added to inventory
             </p>
+            {createdItem.latestPrice && (
+              <div className="pt-1">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  ₹{(createdItem.latestPrice.amountMinor / 100).toLocaleString('en-IN')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Photo Thumbnail if uploaded */}
@@ -472,6 +489,31 @@ export default function QuickCapturePage() {
                 <option value="bottles">Bottles</option>
                 <option value="packs">Packs</option>
               </select>
+            </div>
+          </div>
+
+          {/* Optional Price Field */}
+          <div className="pt-2">
+            <label
+              htmlFor="item-price"
+              className="block text-[11px] font-semibold text-slate-600 mb-1"
+            >
+              Estimated / Purchase Price (₹ Optional)
+            </label>
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 text-sm font-bold text-slate-400 select-none">
+                ₹
+              </span>
+              <input
+                id="item-price"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="0.00"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-2xl text-sm font-semibold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500 min-h-[44px]"
+              />
             </div>
           </div>
         </div>

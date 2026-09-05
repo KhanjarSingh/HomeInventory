@@ -358,24 +358,32 @@ export default function ItemDetailPage() {
           </p>
         )}
 
-        {/* Quantity Breakdown Grid */}
-        <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-2xl text-center">
+        {/* Quantity & Price Breakdown Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-slate-50 rounded-2xl text-center">
           <div>
             <span className="text-[11px] text-slate-400 font-semibold block uppercase">Total</span>
             <span className="text-base sm:text-lg font-black text-slate-900">
               {item.totalQuantity} <span className="text-xs font-normal">{item.unit}</span>
             </span>
           </div>
-          <div className="border-x border-slate-200">
+          <div className="border-l border-slate-200">
             <span className="text-[11px] text-emerald-600 font-semibold block uppercase">Placed</span>
             <span className="text-base sm:text-lg font-black text-emerald-700">
               {item.placedQuantity} <span className="text-xs font-normal">{item.unit}</span>
             </span>
           </div>
-          <div>
+          <div className="border-l border-slate-200">
             <span className="text-[11px] text-amber-600 font-semibold block uppercase">Unplaced</span>
             <span className="text-base sm:text-lg font-black text-amber-700">
               {item.unplacedQuantity} <span className="text-xs font-normal">{item.unit}</span>
+            </span>
+          </div>
+          <div className="border-l border-slate-200">
+            <span className="text-[11px] text-indigo-600 font-semibold block uppercase">Price</span>
+            <span className="text-base sm:text-lg font-black text-indigo-700">
+              {item.latestPrice != null
+                ? `₹${(item.latestPrice.amountMinor / 100).toLocaleString('en-IN')}`
+                : '—'}
             </span>
           </div>
         </div>

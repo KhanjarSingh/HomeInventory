@@ -210,10 +210,17 @@ export default function ItemsListPage() {
 
                 {/* Details */}
                 <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    {item.categoryName && (
+                  <div className="flex items-center justify-between gap-1.5">
+                    {item.categoryName ? (
                       <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md uppercase tracking-wider truncate">
                         {item.categoryName}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    {item.priceMinor != null && (
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
+                        ₹{(item.priceMinor / 100).toLocaleString('en-IN')}
                       </span>
                     )}
                   </div>

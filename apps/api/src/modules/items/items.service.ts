@@ -1,5 +1,5 @@
 import { db } from '../../config/db';
-import { items, itemImages, categories, itemPlacements } from '../../db/schema';
+import { items, itemImages, categories, itemPlacements, priceHistory } from '../../db/schema';
 import { eq, and, isNull, desc, asc, sql, inArray, ilike } from 'drizzle-orm';
 import { AppError } from '../../utils/errors';
 import { PlacementsService } from '../placements/placements.service';
@@ -10,6 +10,7 @@ import type {
   ItemSummaryDto,
   ItemDetailDto,
   ItemImageDto,
+  PriceHistoryDto,
   ItemUnit,
   ItemCondition,
   ItemStatus,
@@ -110,6 +111,18 @@ export class ItemsService {
         },
         userId
       );
+    }
+
+    // 5. Save initial purchase price if provided
+    if (input.purchasePrice !== undefined && input.purchasePrice !== null && !isNaN(Number(input.purchasePrice))) {
+      await db.insert(priceHistory).values({
+        householdId,
+        itemId: newItem.id,
+        amountMinor: Math.round(Number(input.purchasePrice) * 100),
+        currency: input.currency || 'INR',
+        type: 'purchase',
+        createdBy: userId || null,
+      });
     }
 
     return this.getItemById(householdId, newItem.id);
@@ -241,6 +254,28 @@ export class ItemsService {
       })
     );
 
+    // 5. Batch fetch latest prices
+    const priceRows = await db
+      .select()
+      .from(priceHistory)
+      .where(
+        and(
+          eq(priceHistory.householdId, householdId),
+          inArray(priceHistory.itemId, itemIds)
+        )
+      )
+      .orderBy(desc(priceHistory.date), desc(priceHistory.createdAt));
+
+    const priceMap = new Map<string, { amountMinor: number; currency: string }>();
+    for (const p of priceRows) {
+      if (!priceMap.has(p.itemId)) {
+        priceMap.set(p.itemId, {
+          amountMinor: Number(p.amountMinor),
+          currency: p.currency,
+        });
+      }
+    }
+
     const summaries: ItemSummaryDto[] = [];
 
     for (const item of itemList) {
@@ -270,6 +305,8 @@ export class ItemsService {
         }
       }
 
+      const itemPrice = priceMap.get(item.id);
+
       summaries.push({
         id: item.id,
         householdId: item.householdId,
@@ -285,6 +322,8 @@ export class ItemsService {
         isContainer: item.isContainer,
         condition: item.condition as ItemCondition,
         primaryImage: imageMap.get(item.id) || null,
+        priceMinor: itemPrice ? itemPrice.amountMinor : null,
+        currency: itemPrice ? itemPrice.currency : null,
         breadcrumbs,
         breadcrumbString,
         createdAt: item.createdAt.toISOString(),
@@ -383,6 +422,33 @@ export class ItemsService {
     // Fetch resolved placements & stock breakdown
     const locationsSummary = await PlacementsService.getItemLocations(householdId, itemId);
 
+    // Fetch latest price history
+    const [latestPriceRow] = await db
+      .select()
+      .from(priceHistory)
+      .where(
+        and(
+          eq(priceHistory.householdId, householdId),
+          eq(priceHistory.itemId, itemId)
+        )
+      )
+      .orderBy(desc(priceHistory.date), desc(priceHistory.createdAt))
+      .limit(1);
+
+    const latestPrice: PriceHistoryDto | null = latestPriceRow
+      ? {
+          id: latestPriceRow.id,
+          itemId: latestPriceRow.itemId,
+          amountMinor: Number(latestPriceRow.amountMinor),
+          currency: latestPriceRow.currency,
+          type: latestPriceRow.type as any,
+          source: latestPriceRow.source,
+          date: latestPriceRow.date,
+          notes: latestPriceRow.notes,
+          createdAt: latestPriceRow.createdAt.toISOString(),
+        }
+      : null;
+
     return {
       id: item.id,
       householdId: item.householdId,
@@ -413,6 +479,7 @@ export class ItemsService {
       isContainer: item.isContainer,
       version: item.version,
       completenessScore: item.completenessScore,
+      latestPrice,
       primaryImage,
       images,
       resolvedPlacements: locationsSummary.placements,
@@ -485,6 +552,17 @@ export class ItemsService {
         updatedAt: new Date(),
       })
       .where(eq(items.id, itemId));
+
+    if (input.purchasePrice !== undefined && input.purchasePrice !== null && !isNaN(Number(input.purchasePrice))) {
+      await db.insert(priceHistory).values({
+        householdId,
+        itemId,
+        amountMinor: Math.round(Number(input.purchasePrice) * 100),
+        currency: input.currency || 'INR',
+        type: 'purchase',
+        createdBy: _userId || null,
+      });
+    }
 
     return this.getItemById(householdId, itemId);
   }

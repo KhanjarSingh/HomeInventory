@@ -110,6 +110,8 @@ export const createItemSchema = z.object({
   status: z.enum(ITEM_STATUSES).default('active'),
   totalQuantity: z.number().positive('Quantity must be greater than 0').default(1),
   unit: z.enum(ITEM_UNITS).default('pcs'),
+  purchasePrice: z.number().nonnegative('Price cannot be negative').optional(),
+  currency: z.string().length(3).default('INR').optional(),
   lowStockThreshold: z.number().positive().optional(),
   isConsumable: z.boolean().default(false),
   isContainer: z.boolean().default(false),

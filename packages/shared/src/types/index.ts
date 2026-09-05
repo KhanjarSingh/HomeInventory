@@ -290,6 +290,8 @@ export interface ItemSummaryDto {
   isContainer: boolean;
   condition: ItemCondition;
   primaryImage: ItemImageDto | null;
+  priceMinor?: number | null;
+  currency?: string | null;
   breadcrumbs: PhysicalBreadcrumbSegmentDto[];
   breadcrumbString: string;
   createdAt: string;
