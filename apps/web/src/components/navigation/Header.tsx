@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth';
-import { Package, LogOut, LogIn, Home, Shield, User, MapPin, Box } from 'lucide-react';
+import { Package, LogOut, LogIn, Home, Shield, User, MapPin, Box, Camera } from 'lucide-react';
 
 export function Header() {
   const { user, activeHousehold, isAuthenticated, logout, isLoading } = useAuth();
@@ -55,6 +55,13 @@ export function Header() {
         {isAuthenticated && (
           <nav className="flex items-center gap-2">
             <Link
+              href="/items"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition"
+            >
+              <Package className="w-4 h-4 text-emerald-600" />
+              <span>Items</span>
+            </Link>
+            <Link
               href="/locations"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition"
             >
@@ -67,6 +74,13 @@ export function Header() {
             >
               <Box className="w-4 h-4 text-amber-600" />
               <span>Containers</span>
+            </Link>
+            <Link
+              href="/items/quick-capture"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Quick Add</span>
             </Link>
           </nav>
         )}

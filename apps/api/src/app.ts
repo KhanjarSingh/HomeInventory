@@ -14,6 +14,9 @@ import {
   containersRouter,
   itemLocationsRouter,
 } from './modules/placements/placements.routes';
+import { uploadsRouter } from './modules/uploads/uploads.routes';
+import { categoriesRouter } from './modules/categories/categories.routes';
+import { itemsRouter } from './modules/items/items.routes';
 import { AppError } from './utils/errors';
 
 export function createApp(): express.Application {
@@ -50,7 +53,10 @@ export function createApp(): express.Application {
   app.use('/api/v1/locations', locationsRouter);
   app.use('/api/v1/placements', placementsRouter);
   app.use('/api/v1/containers', containersRouter);
+  app.use('/api/v1/uploads', uploadsRouter);
+  app.use('/api/v1/categories', categoriesRouter);
   app.use('/api/v1/items', itemLocationsRouter);
+  app.use('/api/v1/items', itemsRouter);
 
   // Catch-all 404 handler
   app.use((req, _res, next) => {

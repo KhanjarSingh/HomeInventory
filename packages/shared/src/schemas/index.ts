@@ -70,6 +70,25 @@ export const weightSchema = z.object({
   unit: z.enum(['g', 'kg', 'oz', 'lb']).default('g'),
 });
 
+// Image Metadata
+export const confirmImageUploadSchema = z.object({
+  cloudinaryPublicId: z.string().min(1),
+  url: z.string().url(),
+  secureUrl: z.string().url(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  format: z.string().min(1),
+  bytes: z.number().int().positive(),
+  kind: z.enum(IMAGE_KINDS).default('primary'),
+  altText: z.string().max(255).optional(),
+  isPrimary: z.boolean().default(false),
+});
+
+export const signedUploadParamsSchema = z.object({
+  folder: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+});
+
 export const createItemSchema = z.object({
   name: z.string().min(1, 'Item name is required').max(255),
   displayName: z.string().max(255).optional(),
@@ -96,6 +115,8 @@ export const createItemSchema = z.object({
   isContainer: z.boolean().default(false),
   initialLocationId: z.string().uuid().optional(),
   initialContainerItemId: z.string().uuid().optional(),
+  placementNotes: z.string().max(500).optional(),
+  initialImage: confirmImageUploadSchema.optional(),
   tags: z.array(z.string()).optional().default([]),
 });
 
@@ -149,20 +170,6 @@ export const adjustQuantitySchema = z.object({
   containerItemId: z.string().uuid().nullable().optional(),
 });
 
-// Image Metadata
-export const confirmImageUploadSchema = z.object({
-  cloudinaryPublicId: z.string().min(1),
-  url: z.string().url(),
-  secureUrl: z.string().url(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-  format: z.string().min(1),
-  bytes: z.number().int().positive(),
-  kind: z.enum(IMAGE_KINDS).default('primary'),
-  altText: z.string().max(255).optional(),
-  isPrimary: z.boolean().default(false),
-});
-
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateLocationInput = z.infer<typeof createLocationSchema>;
@@ -176,3 +183,4 @@ export type MovePlacementInput = z.infer<typeof movePlacementSchema>;
 export type MoveStockInput = z.infer<typeof moveStockSchema>;
 export type AdjustQuantityInput = z.infer<typeof adjustQuantitySchema>;
 export type ConfirmImageUploadInput = z.infer<typeof confirmImageUploadSchema>;
+export type SignedUploadParamsInput = z.infer<typeof signedUploadParamsSchema>;

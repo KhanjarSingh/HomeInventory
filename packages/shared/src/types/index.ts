@@ -256,6 +256,52 @@ export interface ItemDto {
   deletedAt?: string | null;
 }
 
+export interface SignedUploadParamsDto {
+  signature: string;
+  timestamp: number;
+  apiKey: string;
+  cloudName: string;
+  folder: string;
+}
+
+export interface CategoryDto {
+  id: string;
+  householdId: string;
+  parentId: string | null;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  sortOrder: number;
+  isSystem: boolean;
+}
+
+export interface ItemSummaryDto {
+  id: string;
+  householdId: string;
+  name: string;
+  displayName: string | null;
+  description: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  totalQuantity: number;
+  placedQuantity: number;
+  unplacedQuantity: number;
+  unit: ItemUnit;
+  isContainer: boolean;
+  condition: ItemCondition;
+  primaryImage: ItemImageDto | null;
+  breadcrumbs: PhysicalBreadcrumbSegmentDto[];
+  breadcrumbString: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ItemDetailDto extends ItemDto {
+  placedQuantity: number;
+  unplacedQuantity: number;
+  resolvedPlacements: ResolvedPlacementDto[];
+}
+
 export interface HealthCheckDto {
   status: 'ok' | 'degraded' | 'error';
   timestamp: string;
