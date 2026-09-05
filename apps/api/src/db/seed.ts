@@ -156,7 +156,18 @@ export async function runSeeds(): Promise<void> {
     // - Store Room
     // - Attic / Roof
 
-    // --- Depth 0: Rooms ---
+    // 4. Create Simple Clean Home Locations (No nested hierarchy)
+    const [hall] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Hall',
+      kind: 'room',
+      icon: 'sofa',
+      color: '#10b981',
+      path: '/hall/',
+      depth: 0,
+      sortOrder: 1,
+    }).returning();
+
     const [smallBedroom] = await db.insert(locations).values({
       householdId: hId,
       name: 'Small Bedroom',
@@ -165,7 +176,7 @@ export async function runSeeds(): Promise<void> {
       color: '#60a5fa',
       path: '/small-bedroom/',
       depth: 0,
-      sortOrder: 1,
+      sortOrder: 2,
     }).returning();
 
     const [bigBedroom] = await db.insert(locations).values({
@@ -175,17 +186,6 @@ export async function runSeeds(): Promise<void> {
       icon: 'bed-double',
       color: '#3b82f6',
       path: '/big-bedroom/',
-      depth: 0,
-      sortOrder: 2,
-    }).returning();
-
-    const [hall] = await db.insert(locations).values({
-      householdId: hId,
-      name: 'Hall',
-      kind: 'room',
-      icon: 'sofa',
-      color: '#10b981',
-      path: '/hall/',
       depth: 0,
       sortOrder: 3,
     }).returning();
@@ -212,310 +212,20 @@ export async function runSeeds(): Promise<void> {
       sortOrder: 5,
     }).returning();
 
-    const [storeRoom] = await db.insert(locations).values({
+    const [attic] = await db.insert(locations).values({
       householdId: hId,
-      name: 'Store Room',
+      name: 'Attic',
       kind: 'room',
-      icon: 'archive',
-      color: '#64748b',
-      path: '/store-room/',
+      icon: 'warehouse',
+      color: '#a855f7',
+      path: '/attic/',
       depth: 0,
       sortOrder: 6,
     }).returning();
 
-    const [atticRoof] = await db.insert(locations).values({
-      householdId: hId,
-      name: 'Attic / Roof',
-      kind: 'room',
-      icon: 'warehouse',
-      color: '#a855f7',
-      path: '/attic-roof/',
-      depth: 0,
-      sortOrder: 7,
-    }).returning();
-
-    if (!smallBedroom || !bigBedroom || !hall || !passage || !kitchen || !storeRoom || !atticRoof) {
-      throw new Error('Failed to create top-level home locations');
+    if (!hall || !smallBedroom || !bigBedroom || !passage || !kitchen || !attic) {
+      throw new Error('Failed to create home locations');
     }
-
-    // --- Depth 1 & 2: Small Bedroom Hierarchy ---
-    const [sbWardrobe] = await db.insert(locations).values({
-      householdId: hId,
-      parentId: smallBedroom.id,
-      name: 'Wardrobe',
-      kind: 'wardrobe',
-      path: `/small-bedroom/${smallBedroom.id}/wardrobe/`,
-      depth: 1,
-    }).returning();
-
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: sbWardrobe!.id,
-        name: 'Top Shelf',
-        kind: 'shelf',
-        path: `/small-bedroom/${smallBedroom.id}/wardrobe/${sbWardrobe!.id}/top-shelf/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: sbWardrobe!.id,
-        name: 'Middle Shelf',
-        kind: 'shelf',
-        path: `/small-bedroom/${smallBedroom.id}/wardrobe/${sbWardrobe!.id}/middle-shelf/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: sbWardrobe!.id,
-        name: 'Bottom Shelf',
-        kind: 'shelf',
-        path: `/small-bedroom/${smallBedroom.id}/wardrobe/${sbWardrobe!.id}/bottom-shelf/`,
-        depth: 2,
-      },
-    ]);
-
-    const [sbBedsideTable] = await db.insert(locations).values({
-      householdId: hId,
-      parentId: smallBedroom.id,
-      name: 'Bedside Table',
-      kind: 'furniture',
-      path: `/small-bedroom/${smallBedroom.id}/bedside-table/`,
-      depth: 1,
-    }).returning();
-
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: sbBedsideTable!.id,
-        name: 'Drawer 1',
-        kind: 'drawer',
-        path: `/small-bedroom/${smallBedroom.id}/bedside-table/${sbBedsideTable!.id}/drawer-1/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: sbBedsideTable!.id,
-        name: 'Drawer 2',
-        kind: 'drawer',
-        path: `/small-bedroom/${smallBedroom.id}/bedside-table/${sbBedsideTable!.id}/drawer-2/`,
-        depth: 2,
-      },
-    ]);
-
-    // --- Depth 1 & 2: Big Bedroom Hierarchy ---
-    const [bbWardrobe] = await db.insert(locations).values({
-      householdId: hId,
-      parentId: bigBedroom.id,
-      name: 'Wardrobe',
-      kind: 'wardrobe',
-      path: `/big-bedroom/${bigBedroom.id}/wardrobe/`,
-      depth: 1,
-    }).returning();
-
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: bbWardrobe!.id,
-        name: 'Top Shelf',
-        kind: 'shelf',
-        path: `/big-bedroom/${bigBedroom.id}/wardrobe/${bbWardrobe!.id}/top-shelf/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: bbWardrobe!.id,
-        name: 'Middle Shelf',
-        kind: 'shelf',
-        path: `/big-bedroom/${bigBedroom.id}/wardrobe/${bbWardrobe!.id}/middle-shelf/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: bbWardrobe!.id,
-        name: 'Bottom Shelf',
-        kind: 'shelf',
-        path: `/big-bedroom/${bigBedroom.id}/wardrobe/${bbWardrobe!.id}/bottom-shelf/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: bigBedroom.id,
-        name: 'Bedside Table',
-        kind: 'furniture',
-        path: `/big-bedroom/${bigBedroom.id}/bedside-table/`,
-        depth: 1,
-      },
-      {
-        householdId: hId,
-        parentId: bigBedroom.id,
-        name: 'Study Desk',
-        kind: 'furniture',
-        path: `/big-bedroom/${bigBedroom.id}/study-desk/`,
-        depth: 1,
-      },
-    ]);
-
-    // --- Depth 1 & 2: Hall Hierarchy ---
-    const [hallTvUnit] = await db.insert(locations).values({
-      householdId: hId,
-      parentId: hall.id,
-      name: 'TV Unit',
-      kind: 'furniture',
-      path: `/hall/${hall.id}/tv-unit/`,
-      depth: 1,
-    }).returning();
-
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: hallTvUnit!.id,
-        name: 'Shelf 1',
-        kind: 'shelf',
-        path: `/hall/${hall.id}/tv-unit/${hallTvUnit!.id}/shelf-1/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: hallTvUnit!.id,
-        name: 'Shelf 2',
-        kind: 'shelf',
-        path: `/hall/${hall.id}/tv-unit/${hallTvUnit!.id}/shelf-2/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: hall.id,
-        name: 'Cabinet',
-        kind: 'cabinet',
-        path: `/hall/${hall.id}/cabinet/`,
-        depth: 1,
-      },
-    ]);
-
-    // --- Depth 1: Passage Hierarchy ---
-    await db.insert(locations).values({
-      householdId: hId,
-      parentId: passage.id,
-      name: 'Storage Area',
-      kind: 'storage_area',
-      path: `/passage/${passage.id}/storage-area/`,
-      depth: 1,
-    });
-
-    // --- Depth 1 & 2: Kitchen Hierarchy ---
-    const [kitchenCabinet] = await db.insert(locations).values({
-      householdId: hId,
-      parentId: kitchen.id,
-      name: 'Cabinet',
-      kind: 'cabinet',
-      path: `/kitchen/${kitchen.id}/cabinet/`,
-      depth: 1,
-    }).returning();
-
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: kitchenCabinet!.id,
-        name: 'Shelf 1',
-        kind: 'shelf',
-        path: `/kitchen/${kitchen.id}/cabinet/${kitchenCabinet!.id}/shelf-1/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: kitchenCabinet!.id,
-        name: 'Shelf 2',
-        kind: 'shelf',
-        path: `/kitchen/${kitchen.id}/cabinet/${kitchenCabinet!.id}/shelf-2/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: kitchen.id,
-        name: 'Counter Storage',
-        kind: 'storage_area',
-        path: `/kitchen/${kitchen.id}/counter-storage/`,
-        depth: 1,
-      },
-    ]);
-
-    // --- Depth 1 & 2: Store Room Hierarchy ---
-    const [storeRack1] = await db.insert(locations).values({
-      householdId: hId,
-      parentId: storeRoom.id,
-      name: 'Rack 1',
-      kind: 'rack',
-      path: `/store-room/${storeRoom.id}/rack-1/`,
-      depth: 1,
-    }).returning();
-
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: storeRack1!.id,
-        name: 'Shelf 1',
-        kind: 'shelf',
-        path: `/store-room/${storeRoom.id}/rack-1/${storeRack1!.id}/shelf-1/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: storeRack1!.id,
-        name: 'Shelf 2',
-        kind: 'shelf',
-        path: `/store-room/${storeRoom.id}/rack-1/${storeRack1!.id}/shelf-2/`,
-        depth: 2,
-      },
-    ]);
-
-    const [storeRack2] = await db.insert(locations).values({
-      householdId: hId,
-      parentId: storeRoom.id,
-      name: 'Rack 2',
-      kind: 'rack',
-      path: `/store-room/${storeRoom.id}/rack-2/`,
-      depth: 1,
-    }).returning();
-
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: storeRack2!.id,
-        name: 'Shelf 1',
-        kind: 'shelf',
-        path: `/store-room/${storeRoom.id}/rack-2/${storeRack2!.id}/shelf-1/`,
-        depth: 2,
-      },
-      {
-        householdId: hId,
-        parentId: storeRack2!.id,
-        name: 'Shelf 2',
-        kind: 'shelf',
-        path: `/store-room/${storeRoom.id}/rack-2/${storeRack2!.id}/shelf-2/`,
-        depth: 2,
-      },
-    ]);
-
-    // --- Depth 1: Attic / Roof Hierarchy ---
-    await db.insert(locations).values([
-      {
-        householdId: hId,
-        parentId: atticRoof.id,
-        name: 'Storage Area',
-        kind: 'storage_area',
-        path: `/attic-roof/${atticRoof.id}/storage-area/`,
-        depth: 1,
-      },
-      {
-        householdId: hId,
-        parentId: atticRoof.id,
-        name: 'Rack',
-        kind: 'rack',
-        path: `/attic-roof/${atticRoof.id}/rack/`,
-        depth: 1,
-      },
-    ]);
 
     // 5. Create Categories
     const categoryData = [

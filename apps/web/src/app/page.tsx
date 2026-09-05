@@ -1,28 +1,90 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '../components/navigation/Header';
 import { useAuth } from '../hooks/useAuth';
 import { ProfileUnlock } from '../components/auth/ProfileUnlock';
+import { fetchApi } from '../lib/api';
+import type { LocationTreeItemDto, ItemSummaryDto } from '@home-inventory/shared';
 import {
   MapPin,
   Box,
-  Layers,
+  Package,
   ArrowRight,
   Shield,
   LogOut,
   Loader2,
   Sparkles,
+  Camera,
+  Sofa,
+  BedSingle,
+  BedDouble,
+  Footprints,
+  Utensils,
+  Warehouse,
+  Search,
 } from 'lucide-react';
+
+function getRoomIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes('hall')) return <Sofa className="w-5 h-5 text-emerald-600" />;
+  if (lower.includes('small bedroom')) return <BedSingle className="w-5 h-5 text-blue-600" />;
+  if (lower.includes('big bedroom')) return <BedDouble className="w-5 h-5 text-indigo-600" />;
+  if (lower.includes('passage')) return <Footprints className="w-5 h-5 text-slate-600" />;
+  if (lower.includes('kitchen')) return <Utensils className="w-5 h-5 text-amber-600" />;
+  if (lower.includes('attic')) return <Warehouse className="w-5 h-5 text-purple-600" />;
+  return <MapPin className="w-5 h-5 text-blue-600" />;
+}
+
+function getRoomBg(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes('hall')) return 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-400';
+  if (lower.includes('small bedroom')) return 'bg-blue-50/60 border-blue-200 hover:border-blue-400';
+  if (lower.includes('big bedroom')) return 'bg-indigo-50/60 border-indigo-200 hover:border-indigo-400';
+  if (lower.includes('passage')) return 'bg-slate-50/80 border-slate-200 hover:border-slate-400';
+  if (lower.includes('kitchen')) return 'bg-amber-50/60 border-amber-200 hover:border-amber-400';
+  if (lower.includes('attic')) return 'bg-purple-50/60 border-purple-200 hover:border-purple-400';
+  return 'bg-white border-slate-200 hover:border-blue-300';
+}
 
 export default function HomePage() {
   const { user, activeHousehold, isAuthenticated, isLoading, logout } = useAuth();
+  const [locations, setLocations] = useState<LocationTreeItemDto[]>([]);
+  const [items, setItems] = useState<ItemSummaryDto[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let isMounted = true;
+    setIsLoadingData(true);
+
+    Promise.all([
+      fetchApi<LocationTreeItemDto[]>('/locations'),
+      fetchApi<ItemSummaryDto[]>('/items'),
+    ])
+      .then(([locsRes, itemsRes]) => {
+        if (isMounted) {
+          setLocations(locsRes.data || []);
+          setItems(itemsRes.data || []);
+        }
+      })
+      .catch(() => {
+        // Silently handle if offline
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingData(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
       </div>
     );
   }
@@ -36,118 +98,169 @@ export default function HomePage() {
     );
   }
 
-  // Authenticated experience: Clean, warm household inventory dashboard
+  const firstName = user.fullName.split(' ')[0] || user.fullName;
+
+  // Authenticated experience: Mobile-first, touch-friendly home inventory
   return (
-    <main className="min-h-screen bg-slate-50 p-6 md:p-12">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <main className="min-h-screen bg-slate-50 p-3 sm:p-6 md:p-8 pb-24 md:pb-12">
+      <div className="max-w-4xl mx-auto space-y-5">
         {/* Navigation Header */}
         <Header />
 
-        {/* Welcome Banner */}
-        <section className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{activeHousehold?.name || "Tandalwade's Residency"}</span>
+        {/* Compact Mobile Welcome Bar */}
+        <section className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 mb-1">
+              <Sparkles className="w-3 h-3 text-blue-600 shrink-0" />
+              <span className="truncate">{activeHousehold?.name || "Tandalwade's Residency"}</span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-              Welcome home, {user.fullName}!
-            </h2>
-            <p className="text-sm text-slate-500 max-w-xl">
-              Digital twin for your home. Find items and storage containers across your rooms, wardrobes, and shelves without opening boxes.
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight truncate">
+              Welcome, {firstName}!
+            </h1>
+            <p className="text-xs text-slate-500 truncate mt-0.5">
+              Select a room below or snap a photo to catalogue items.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <Link
-              href="/locations"
-              className="inline-flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-2xl shadow-xs transition"
-            >
-              <MapPin className="w-4 h-4" />
-              <span>Explore Locations</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <button
-              onClick={logout}
-              title="Lock / Switch Profile"
-              className="p-3 text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-2xl transition cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+          <Link
+            href="/items/quick-capture"
+            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition active:scale-95"
+          >
+            <Camera className="w-4 h-4" />
+            <span className="hidden sm:inline">Add Item</span>
+            <span className="sm:hidden">+ Add</span>
+          </Link>
         </section>
 
-        {/* Core Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Card 1: Physical Hierarchy */}
+        {/* Quick Stats Strip */}
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
           <Link
-            href="/locations"
-            className="group bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition duration-200 flex flex-col justify-between space-y-4"
+            href="/items"
+            className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:border-emerald-300 transition text-center sm:text-left"
           >
-            <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition">
-                <MapPin className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition">
-                  Physical Hierarchy
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Browse the 7 real-home areas (Small Bedroom, Big Bedroom, Hall, Passage, Kitchen, Store Room, Attic) and nested furniture.
-                </p>
-              </div>
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Total Items
             </div>
-            <div className="text-xs font-semibold text-blue-600 flex items-center gap-1">
-              <span>View 7 Areas</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+            <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5">
+              {items.length}
             </div>
           </Link>
 
-          {/* Card 2: Movable Storage Containers */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <Box className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Storage Boxes & Totes
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Track movable storage boxes, crates, and pouches placed inside your wardrobes and shelves with nested items.
-                </p>
-              </div>
+          <Link
+            href="/locations"
+            className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:border-blue-300 transition text-center sm:text-left"
+          >
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Rooms
+            </div>
+            <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5">
+              {locations.length > 0 ? locations.length : 6}
+            </div>
+          </Link>
+
+          <Link
+            href="/containers"
+            className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:border-amber-300 transition text-center sm:text-left"
+          >
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Boxes
+            </div>
+            <div className="text-lg sm:text-2xl font-black text-slate-900 mt-0.5">
+              0
+            </div>
+          </Link>
+        </div>
+
+        {/* Home Locations (Direct Access Touch Grid) */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                Home Locations
+              </h2>
             </div>
             <Link
               href="/locations"
-              className="text-xs font-semibold text-amber-700 flex items-center gap-1 hover:underline"
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
-              <span>Explore in Locations</span>
+              <span>Manage</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
-          {/* Card 3: Family Household Profiles */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                <Shield className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Family Profiles
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Private household access for Vithal, Shailaja (Owners) and Rutuja, Parth (Editors).
-                </p>
-              </div>
+          {isLoadingData ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-24 bg-slate-100 rounded-2xl animate-pulse" />
+              ))}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-xs text-slate-500 font-medium">Active: {user.fullName} ({activeHousehold?.role})</span>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+              {locations.map((loc) => {
+                const icon = getRoomIcon(loc.name);
+                const bgStyle = getRoomBg(loc.name);
+                const itemCount = loc.directItemCount || 0;
+
+                return (
+                  <Link
+                    key={loc.id}
+                    href={`/locations/${loc.id}`}
+                    className={`group p-3.5 sm:p-5 rounded-2xl border transition-all duration-150 active:scale-98 flex flex-col justify-between min-h-[96px] sm:min-h-[110px] ${bgStyle}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="p-2 rounded-xl bg-white shadow-2xs shrink-0">
+                        {icon}
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition" />
+                    </div>
+
+                    <div className="mt-2">
+                      <div className="font-bold text-sm sm:text-base text-slate-900 leading-snug truncate">
+                        {loc.name}
+                      </div>
+                      <div className="text-[11px] font-medium text-slate-500 mt-0.5">
+                        {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
+          )}
+        </section>
+
+        {/* Primary Mobile Action Banner: Camera-First Capture */}
+        <section className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-5 sm:p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white backdrop-blur-xs">
+              📸 Camera First
+            </div>
+            <h3 className="text-lg sm:text-xl font-black tracking-tight">
+              Start Cataloguing Items
+            </h3>
+            <p className="text-xs sm:text-sm text-blue-100 max-w-md">
+              Walk around Tandalwade's Residency with your phone. Take a photo, enter quantity, and choose a room.
+            </p>
           </div>
-        </div>
+
+          <Link
+            href="/items/quick-capture"
+            className="inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-white text-blue-700 hover:bg-blue-50 font-bold text-sm rounded-2xl shadow-md transition active:scale-95 shrink-0"
+          >
+            <Camera className="w-5 h-5 text-blue-600" />
+            <span>Open Camera & Add</span>
+          </Link>
+        </section>
+
+        {/* Quick Search Shortcut */}
+        <Link
+          href="/items"
+          className="flex items-center gap-3 p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:border-slate-300 transition text-slate-400 text-xs sm:text-sm"
+        >
+          <Search className="w-4 h-4 text-slate-400 ml-1" />
+          <span>Search items across Hall, Bedrooms, Kitchen...</span>
+        </Link>
       </div>
     </main>
   );
