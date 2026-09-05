@@ -38,7 +38,9 @@ export function setAuthCookies(
   accessToken: string,
   refreshToken: string
 ): void {
-  const isProduction = env.NODE_ENV === 'production';
+  const isProduction =
+    env.NODE_ENV === 'production' ||
+    Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID);
   // Cross-site cookies between Vercel (frontend) and Render (API) require SameSite=None and Secure=true.
   // In development/test over localhost HTTP, SameSite=Lax and Secure=false is used.
   const sameSite = env.COOKIE_SAME_SITE ?? (isProduction ? 'none' : 'lax');
@@ -62,7 +64,9 @@ export function setAuthCookies(
 }
 
 export function clearAuthCookies(res: Response): void {
-  const isProduction = env.NODE_ENV === 'production';
+  const isProduction =
+    env.NODE_ENV === 'production' ||
+    Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID);
   const sameSite = env.COOKIE_SAME_SITE ?? (isProduction ? 'none' : 'lax');
   const secure = env.COOKIE_SECURE ?? isProduction;
 

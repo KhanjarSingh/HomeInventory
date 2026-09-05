@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://homeinventory-2qty.onrender.com';
+    const cleanBackendUrl = rawBackendUrl.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: `${cleanBackendUrl}/api/v1/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

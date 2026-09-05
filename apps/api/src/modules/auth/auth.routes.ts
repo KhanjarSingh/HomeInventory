@@ -17,10 +17,14 @@ authRouter.post('/register', async (req: Request, res: Response, next: NextFunct
     const response: ApiSuccessResponse<{
       user: typeof result.user;
       household: typeof result.household;
+      accessToken: string;
+      refreshToken: string;
     }> = {
       data: {
         user: result.user,
         household: result.household,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
       },
       meta: {
         requestId: req.id,
@@ -60,10 +64,14 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
     const response: ApiSuccessResponse<{
       user: typeof result.user;
       household: typeof result.household;
+      accessToken: string;
+      refreshToken: string;
     }> = {
       data: {
         user: result.user,
         household: result.household,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
       },
       meta: {
         requestId: req.id,
@@ -88,10 +96,14 @@ authRouter.post('/refresh', async (req: Request, res: Response, next: NextFuncti
     const response: ApiSuccessResponse<{
       user: typeof result.user;
       household: typeof result.household;
+      accessToken: string;
+      refreshToken: string;
     }> = {
       data: {
         user: result.user,
         household: result.household,
+        accessToken: result.accessToken,
+        refreshToken: result.newRefreshToken,
       },
       meta: {
         requestId: req.id,
@@ -163,10 +175,12 @@ authRouter.post('/switch-household', authenticate, async (req: Request, res: Res
     const response: ApiSuccessResponse<{
       user: typeof result.user;
       household: typeof result.household;
+      accessToken: string;
     }> = {
       data: {
         user: result.user,
         household: result.household,
+        accessToken: result.accessToken,
       },
       meta: {
         requestId: req.id,

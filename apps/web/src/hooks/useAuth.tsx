@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { fetchApi, ApiClientError } from '../lib/api';
+import { fetchApi, ApiClientError, getStoredToken, setStoredToken } from '../lib/api';
 import type { UserDto, HouseholdDto, HouseholdRole } from '@home-inventory/shared';
 
 interface AuthContextType {
@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setActiveHousehold(res.data.activeHousehold);
       setHouseholds(res.data.households);
     } catch {
+      setStoredToken(null);
       setUser(null);
       setActiveHousehold(null);
       setHouseholds([]);
@@ -54,14 +55,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await fetchApi<{
       user: UserDto;
       household: HouseholdDto & { role: HouseholdRole };
+      accessToken?: string;
     }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
 
+    if (res.data.accessToken) {
+      setStoredToken(res.data.accessToken);
+    }
+
     setUser(res.data.user);
     setActiveHousehold(res.data.household);
-    await refreshAuth();
+
+    // Silently fetch full profile and households without blocking or wiping auth state on error
+    fetchApi<{
+      user: UserDto;
+      activeHousehold: (HouseholdDto & { role: HouseholdRole }) | null;
+      households: HouseholdDto[];
+    }>('/auth/me')
+      .then((meRes) => {
+        if (meRes.data) {
+          setUser(meRes.data.user);
+          setActiveHousehold(meRes.data.activeHousehold);
+          setHouseholds(meRes.data.households);
+        }
+      })
+      .catch(() => {
+        // Keep login state intact even if background fetch fails
+      });
   };
 
   const register = async (
@@ -73,34 +95,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await fetchApi<{
       user: UserDto;
       household: HouseholdDto & { role: HouseholdRole };
+      accessToken?: string;
     }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ fullName, email, password, householdName }),
     });
 
+    if (res.data.accessToken) {
+      setStoredToken(res.data.accessToken);
+    }
+
     setUser(res.data.user);
     setActiveHousehold(res.data.household);
-    await refreshAuth();
   };
 
   const switchHousehold = async (householdId: string) => {
     const res = await fetchApi<{
       user: UserDto;
       household: HouseholdDto & { role: HouseholdRole };
+      accessToken?: string;
     }>('/auth/switch-household', {
       method: 'POST',
       body: JSON.stringify({ householdId }),
     });
 
+    if (res.data.accessToken) {
+      setStoredToken(res.data.accessToken);
+    }
+
     setUser(res.data.user);
     setActiveHousehold(res.data.household);
-    await refreshAuth();
   };
 
   const logout = async () => {
     try {
       await fetchApi('/auth/logout', { method: 'POST' });
     } finally {
+      setStoredToken(null);
       setUser(null);
       setActiveHousehold(null);
       setHouseholds([]);

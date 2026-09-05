@@ -25,10 +25,14 @@ declare global {
 
 export function authenticate(req: Request, _res: Response, next: NextFunction): void {
   try {
-    let token: string | undefined = req.cookies?.accessToken;
+    let token: string | undefined = undefined;
 
-    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
-      token = req.headers.authorization.substring(7);
+    if (req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.substring(7).trim();
+    }
+
+    if (!token && req.cookies?.accessToken) {
+      token = req.cookies.accessToken;
     }
 
     if (!token) {
