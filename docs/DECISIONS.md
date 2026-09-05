@@ -41,3 +41,25 @@
 - **Context**: Home photos contain exact GPS coordinates of the user's residence.
 - **Decision**: Canvas and image preprocessing pipeline strips GPS metadata before uploading to Cloudinary.
 - **Consequences**: Preserves privacy while keeping image quality and orientation intact.
+
+## ADR-008: Node.js 24 Runtime Standardization & Credential Rotation
+- **Status**: Approved (Phase 1)
+- **Context**: Local development runs Node.js 24.19.0. Deployment and CI must not diverge.
+- **Decision**: Standardize on Node.js 24 across `.nvmrc`, `package.json` engines (`>=24.0.0`), Dockerfile (`node:24-alpine`), and GitHub Actions CI.
+- **Cloudinary Security Note**: Any API secrets provided during initial development are strictly server-side and must be rotated prior to public production deployment. No secret shall ever be exposed to client bundles or git.
+
+## ADR-009: Database & Domain Integrity Enforcement Matrix
+- **Status**: Approved (Phase 1)
+- **Context**: The system must rigorously prevent invalid inventory states, orphaned containers, circular nesting, and cross-household data leaks.
+- **Integrity Enforcement Architecture**:
+
+| Rule | Enforcement Mechanism | Rationale |
+|---|---|---|
+| **Item placed inside itself** | PostgreSQL `CHECK (item_id != container_item_id)` + Service Validation | Hard database constraint prevents physical impossibility. |
+| **Placement Target XOR** | PostgreSQL `CHECK ((location_id IS NOT NULL AND container_item_id IS NULL) OR (location_id IS NULL AND container_item_id IS NOT NULL))` | Guarantees placement is either a location OR container, never both/neither. |
+| **Non-negative Quantities** | PostgreSQL `CHECK (quantity > 0)` on placements, `CHECK (total_quantity >= 0)` on items | Database-level mathematical boundary. |
+| **Cross-Household Isolation** | Composite Foreign Keys: `(household_id, item_id) REFERENCES items(household_id, id)` and `(household_id, location_id) REFERENCES locations(household_id, id)` | Mathematically impossible in PostgreSQL engine for placement to reference another household. |
+| **Circular Container Nesting** | Transactional Recursive CTE in Service Layer + Locking | Detects arbitrary-depth nesting cycles before reparenting without unbounded triggers. |
+| **Non-container as Container** | Composite Foreign Key `(container_item_id, true) REFERENCES items(id, is_container)` + Service check | Enforces container capability at relational level. |
+| **Quantity Reconciliation** | Database Transaction with `SELECT ... FOR UPDATE` | Atomic movements prevent race conditions. |
+| **Legitimate Unplaced Items** | Intentional omission of strict trigger requiring placements | Allows rapid cataloguing (Quick Capture) where items have `total_quantity > 0` with 0 placements. |

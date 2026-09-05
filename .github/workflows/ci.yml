@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Lint, Typecheck & Test (Node 24)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Package
+        run: pnpm --filter @home-inventory/shared run build
+
+      - name: Typecheck Workspace
+        run: pnpm run typecheck
+
+      - name: Run Tests
+        run: pnpm run test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: test_jwt_secret_min_32_characters_long!
+          REFRESH_TOKEN_SECRET: test_refresh_token_secret_min_32_chars!
+          COOKIE_SECRET: test_cookie_secret_min_32_chars!
