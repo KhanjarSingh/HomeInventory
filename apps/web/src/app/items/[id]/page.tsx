@@ -45,6 +45,7 @@ export default function ItemDetailPage() {
 
   // Add Photo state
   const addPhotoInputRef = useRef<HTMLInputElement>(null);
+  const cameraPhotoInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoActionError, setPhotoActionError] = useState<string | null>(null);
 
@@ -96,6 +97,7 @@ export default function ItemDetailPage() {
     } finally {
       setIsUploadingPhoto(false);
       if (addPhotoInputRef.current) addPhotoInputRef.current.value = '';
+      if (cameraPhotoInputRef.current) cameraPhotoInputRef.current.value = '';
     }
   };
 
@@ -174,7 +176,15 @@ export default function ItemDetailPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-5 pb-24 sm:pb-8">
-      {/* Hidden photo input */}
+      {/* Hidden photo inputs */}
+      <input
+        ref={cameraPhotoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleAddPhoto}
+        className="hidden"
+      />
       <input
         ref={addPhotoInputRef}
         type="file"
@@ -261,16 +271,29 @@ export default function ItemDetailPage() {
         {/* Horizontal Photo Reel */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 px-1">
           {canEdit && (
-            <button
-              type="button"
-              onClick={() => addPhotoInputRef.current?.click()}
-              disabled={isUploadingPhoto}
-              className="w-16 h-16 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 flex flex-col items-center justify-center gap-1 shrink-0 transition min-w-[64px]"
-              title="Add another photo"
-            >
-              <Camera className="w-5 h-5" />
-              <span className="text-[10px] font-bold">+ Photo</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => cameraPhotoInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+                className="w-16 h-16 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 flex flex-col items-center justify-center gap-1 shrink-0 transition min-w-[64px]"
+                title="Take a photo"
+              >
+                <Camera className="w-5 h-5" />
+                <span className="text-[10px] font-bold">Take Photo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => addPhotoInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+                className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1 shrink-0 transition min-w-[64px]"
+                title="Add photo from gallery"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="text-[10px] font-bold">+ Photo</span>
+              </button>
+            </>
           )}
 
           {allImages.map((img, idx) => {
