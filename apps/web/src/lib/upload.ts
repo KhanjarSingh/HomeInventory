@@ -31,49 +31,29 @@ export async function uploadImageToCloudinary(
   formData.append('signature', signature);
   formData.append('folder', uploadFolder);
 
-  try {
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-    });
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    body: formData,
+  });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.warn('Cloudinary upload returned non-200, checking fallback:', errText);
-      throw new Error(`Cloudinary upload failed: ${response.statusText}`);
-    }
-
-    const json = await response.json();
-
-    return {
-      cloudinaryPublicId: json.public_id,
-      url: json.url,
-      secureUrl: json.secure_url,
-      width: json.width,
-      height: json.height,
-      format: json.format,
-      bytes: json.bytes,
-      kind: 'primary',
-      isPrimary: true,
-    };
-  } catch (err: any) {
-    // If Cloudinary is not configured with live credentials in demo environment,
-    // generate a graceful local representation so workflow testing continues smoothly.
-    console.warn('Direct Cloudinary upload failed, using simulated upload result for local dev:', err);
-    const mockId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const previewUrl = URL.createObjectURL(file);
-
-    return {
-      cloudinaryPublicId: `inventory/dev/${mockId}`,
-      url: previewUrl,
-      secureUrl: previewUrl,
-      width: 800,
-      height: 600,
-      format: file.type.split('/')[1] || 'jpg',
-      bytes: file.size,
-      kind: 'primary',
-      isPrimary: true,
-    };
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Cloudinary upload failed:', errText);
+    throw new Error('Failed to upload photo. Please check your connection and try again.');
   }
+
+  const json = await response.json();
+
+  return {
+    cloudinaryPublicId: json.public_id,
+    url: json.url,
+    secureUrl: json.secure_url,
+    width: json.width,
+    height: json.height,
+    format: json.format,
+    bytes: json.bytes,
+    kind: 'primary',
+    isPrimary: true,
+  };
 }
