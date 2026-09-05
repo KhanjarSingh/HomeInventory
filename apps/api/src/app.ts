@@ -5,8 +5,10 @@ import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { requestIdMiddleware } from './middleware/requestId.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { healthRouter } from './modules/health/health.routes.js';
-import { AppError } from './utils/errors.js';
+import { healthRouter } from './modules/health/health.routes';
+import { authRouter } from './modules/auth/auth.routes';
+import { householdsRouter } from './modules/households/households.routes';
+import { AppError } from './utils/errors';
 
 export function createApp(): express.Application {
   const app = express();
@@ -35,6 +37,10 @@ export function createApp(): express.Application {
   // Health check routes
   app.use('/health', healthRouter);
   app.use('/api/v1/health', healthRouter);
+
+  // Authentication and Household routes
+  app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1/households', householdsRouter);
 
   // Catch-all 404 handler
   app.use((req, _res, next) => {
