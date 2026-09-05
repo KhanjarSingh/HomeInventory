@@ -62,7 +62,7 @@ export default function ItemDetailPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchApi<ItemDetailDto>(`/api/v1/items/${itemId}`);
+      const res = await fetchApi<ItemDetailDto>(`/items/${itemId}`);
       setItem(res.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load item details');
@@ -86,7 +86,7 @@ export default function ItemDetailPage() {
     setIsUploadingPhoto(true);
     try {
       const uploaded = await uploadImageToCloudinary(file);
-      await fetchApi(`/api/v1/items/${item.id}/images`, {
+      await fetchApi(`/items/${item.id}/images`, {
         method: 'POST',
         body: JSON.stringify(uploaded),
       });
@@ -103,7 +103,7 @@ export default function ItemDetailPage() {
   const handleSetPrimary = async (imageId: string) => {
     if (!item) return;
     try {
-      await fetchApi(`/api/v1/items/${item.id}/images/${imageId}/primary`, {
+      await fetchApi(`/items/${item.id}/images/${imageId}/primary`, {
         method: 'PATCH',
       });
       await loadItem();
@@ -116,7 +116,7 @@ export default function ItemDetailPage() {
   const handleDeletePhoto = async (imageId: string) => {
     if (!item) return;
     try {
-      await fetchApi(`/api/v1/items/${item.id}/images/${imageId}`, {
+      await fetchApi(`/items/${item.id}/images/${imageId}`, {
         method: 'DELETE',
       });
       await loadItem();
@@ -130,7 +130,7 @@ export default function ItemDetailPage() {
     if (!item) return;
     setIsDeleting(true);
     try {
-      await fetchApi(`/api/v1/items/${item.id}`, {
+      await fetchApi(`/items/${item.id}`, {
         method: 'DELETE',
       });
       router.push('/items');

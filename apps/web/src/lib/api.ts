@@ -6,12 +6,14 @@ export function buildApiUrl(endpoint: string): string {
   const rawBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
   const baseWithoutV1 = rawBase.endsWith('/api/v1') ? rawBase.slice(0, -'/api/v1'.length) : rawBase;
 
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const pathWithoutV1 = cleanEndpoint.startsWith('/api/v1')
-    ? cleanEndpoint.slice('/api/v1'.length)
-    : cleanEndpoint;
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  while (cleanEndpoint.startsWith('/api/v1')) {
+    cleanEndpoint = cleanEndpoint.slice('/api/v1'.length) || '/';
+  }
 
-  return `${baseWithoutV1}/api/v1${pathWithoutV1}`;
+  const normalizedPath = cleanEndpoint.startsWith('/') ? cleanEndpoint : `/${cleanEndpoint}`;
+
+  return `${baseWithoutV1}/api/v1${normalizedPath}`;
 }
 
 export class ApiClientError extends Error {

@@ -83,8 +83,8 @@ export function PlacementModal({
     // Load available locations and containers
     setIsLoadingOptions(true);
     Promise.all([
-      fetchApi<LocationTreeItemDto[]>('/api/v1/locations'),
-      fetchApi<ContainerSummaryDto[]>('/api/v1/containers'),
+      fetchApi<LocationTreeItemDto[]>('/locations'),
+      fetchApi<ContainerSummaryDto[]>('/containers'),
     ])
       .then(([locsRes, contsRes]) => {
         const locs = locsRes.data || [];
@@ -126,7 +126,7 @@ export function PlacementModal({
     setIsSubmitting(true);
     try {
       if (mode === 'place') {
-        await fetchApi('/api/v1/placements', {
+        await fetchApi('/placements', {
           method: 'POST',
           body: JSON.stringify({
             itemId: item.id,
@@ -137,7 +137,7 @@ export function PlacementModal({
           }),
         });
       } else if (mode === 'move' && currentPlacement) {
-        await fetchApi(`/api/v1/placements/${currentPlacement.id}/move`, {
+        await fetchApi(`/placements/${currentPlacement.id}/move`, {
           method: 'POST',
           body: JSON.stringify({
             destinationType,

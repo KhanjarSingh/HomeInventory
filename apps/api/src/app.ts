@@ -25,6 +25,14 @@ export function createApp(): express.Application {
   // Trust reverse proxy (Render, Cloudflare, AWS) for HTTPS cookies and accurate IPs
   app.set('trust proxy', 1);
 
+  // Normalize duplicate /api/v1 prefixes defensively (e.g. /api/v1/api/v1/items -> /api/v1/items)
+  app.use((req, _res, next) => {
+    while (req.url.startsWith('/api/v1/api/v1')) {
+      req.url = req.url.replace('/api/v1/api/v1', '/api/v1');
+    }
+    next();
+  });
+
   // Security headers
   app.use(helmet());
 

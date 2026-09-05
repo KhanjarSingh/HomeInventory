@@ -59,7 +59,7 @@ export default function ContainersPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchApi<ContainerSummaryDto[]>('/api/v1/containers');
+      const res = await fetchApi<ContainerSummaryDto[]>('/containers');
       setContainers(res.data || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load containers');
@@ -85,7 +85,7 @@ export default function ContainersPage() {
     setContentsLoading(true);
     try {
       const res = await fetchApi<ContainerContentItemDto[]>(
-        `/api/v1/containers/${containerId}/contents`
+        `/containers/${containerId}/contents`
       );
       setContainerContents(res.data || []);
     } catch (err: any) {
@@ -369,7 +369,7 @@ export default function ContainersPage() {
           loadContainers();
           if (expandedContainerId) {
             fetchApi<ContainerContentItemDto[]>(
-              `/api/v1/containers/${expandedContainerId}/contents`
+              `/containers/${expandedContainerId}/contents`
             ).then((res) => setContainerContents(res.data || []));
           }
         }}

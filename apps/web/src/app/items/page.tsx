@@ -43,8 +43,8 @@ export default function ItemsListPage() {
       const queryString = params.toString() ? `?${params.toString()}` : '';
 
       const [itemsRes, catsRes] = await Promise.all([
-        fetchApi<ItemSummaryDto[]>(`/api/v1/items${queryString}`),
-        fetchApi<CategoryDto[]>('/api/v1/categories'),
+        fetchApi<ItemSummaryDto[]>(`/items${queryString}`),
+        fetchApi<CategoryDto[]>('/categories'),
       ]);
 
       setItems(itemsRes.data || []);

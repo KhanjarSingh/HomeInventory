@@ -75,9 +75,9 @@ export default function QuickCapturePage() {
 
     setIsLoadingOptions(true);
     Promise.all([
-      fetchApi<CategoryDto[]>('/api/v1/categories'),
-      fetchApi<LocationTreeItemDto[]>('/api/v1/locations'),
-      fetchApi<ContainerSummaryDto[]>('/api/v1/containers'),
+      fetchApi<CategoryDto[]>('/categories'),
+      fetchApi<LocationTreeItemDto[]>('/locations'),
+      fetchApi<ContainerSummaryDto[]>('/containers'),
     ])
       .then(([catsRes, locsRes, contsRes]) => {
         const cats = catsRes.data || [];
@@ -182,7 +182,7 @@ export default function QuickCapturePage() {
         payload.initialContainerItemId = selectedContainerId;
       }
 
-      const res = await fetchApi<ItemDetailDto>('/api/v1/items', {
+      const res = await fetchApi<ItemDetailDto>('/items', {
         method: 'POST',
         body: JSON.stringify(payload),
       });

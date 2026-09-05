@@ -16,7 +16,7 @@ export async function uploadImageToCloudinary(
   folder?: string
 ): Promise<ConfirmImageUploadInput> {
   // 1. Request signed parameters from backend
-  const signRes = await fetchApi<SignedUploadParamsDto>('/api/v1/uploads/sign', {
+  const signRes = await fetchApi<SignedUploadParamsDto>('/uploads/sign', {
     method: 'POST',
     body: JSON.stringify(folder ? { folder } : {}),
   });
