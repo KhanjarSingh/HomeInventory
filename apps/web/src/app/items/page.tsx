@@ -12,6 +12,7 @@ import {
   Camera,
   Search,
   Plus,
+  Minus,
   Box,
   Tag,
   Loader2,
@@ -27,6 +28,8 @@ export default function ItemsListPage() {
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingQuantityIds, setPendingQuantityIds] = useState<Set<string>>(new Set());
+  const canEdit = activeHousehold?.role === 'owner' || activeHousehold?.role === 'editor';
 
   // Filters
   const [search, setSearch] = useState('');
@@ -61,6 +64,35 @@ export default function ItemsListPage() {
       loadData();
     }
   }, [isAuthenticated, loadData]);
+
+  const handleAdjustQuantity = async (item: ItemSummaryDto, delta: number) => {
+    if (pendingQuantityIds.has(item.id)) return;
+    const nextQuantity = item.totalQuantity + delta;
+    if (nextQuantity < 0) return;
+
+    setPendingQuantityIds((prev) => new Set(prev).add(item.id));
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, totalQuantity: nextQuantity } : i))
+    );
+
+    try {
+      await fetchApi(`/items/${item.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ totalQuantity: nextQuantity }),
+      });
+    } catch {
+      // Revert optimistic update on failure
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, totalQuantity: item.totalQuantity } : i))
+      );
+    } finally {
+      setPendingQuantityIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
 
   if (isAuthLoading) {
     return (
@@ -239,6 +271,37 @@ export default function ItemsListPage() {
                       </span>
                     )}
                   </div>
+
+                  {canEdit && (
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleAdjustQuantity(item, -1);
+                        }}
+                        disabled={pendingQuantityIds.has(item.id) || item.totalQuantity <= 0}
+                        className="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition disabled:opacity-40"
+                        title="Decrease quantity"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleAdjustQuantity(item, 1);
+                        }}
+                        disabled={pendingQuantityIds.has(item.id)}
+                        className="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition disabled:opacity-40"
+                        title="Increase quantity"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

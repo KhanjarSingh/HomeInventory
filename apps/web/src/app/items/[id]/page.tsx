@@ -10,6 +10,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import type { ItemDetailDto, ItemImageDto } from '@home-inventory/shared';
 import { BreadcrumbBadge } from '../../../components/placements/BreadcrumbBadge';
 import { PlacementModal } from '../../../components/placements/PlacementModal';
+import { EditItemModal } from '../../../components/items/EditItemModal';
 import {
   Package,
   Camera,
@@ -51,6 +52,9 @@ export default function ItemDetailPage() {
 
   // Placement Modal state
   const [isMoveOpen, setIsMoveOpen] = useState(false);
+
+  // Edit Item Modal state
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   // Delete Item state
   const [isDeleting, setIsDeleting] = useState(false);
@@ -205,6 +209,13 @@ export default function ItemDetailPage() {
 
         {canEdit && (
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsEditOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition min-h-[40px]"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Edit</span>
+            </button>
             <button
               onClick={() => setIsDeleteConfirmOpen(true)}
               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition min-w-[40px] min-h-[40px] flex items-center justify-center"
@@ -489,6 +500,14 @@ export default function ItemDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Item Modal */}
+      <EditItemModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        onSuccess={loadItem}
+        item={item}
+      />
 
       {/* Move Placement Modal */}
       <PlacementModal
