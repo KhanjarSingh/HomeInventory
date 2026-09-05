@@ -23,7 +23,7 @@ import {
 import { logger } from '../utils/logger';
 
 export async function runSeeds(): Promise<void> {
-  logger.info('🌱 Starting rich household seed data insertion...');
+  logger.info('🌱 Starting realistic household seed data insertion (Real-Home Physical Hierarchy)...');
 
   try {
     // 1. Clean existing seed data in reverse dependency order
@@ -76,7 +76,7 @@ export async function runSeeds(): Promise<void> {
       })
       .returning();
 
-    // Isolated user in second household
+    // Isolated user in second household (for multi-tenant isolation tests)
     const [neighborUser] = await db
       .insert(users)
       .values({
@@ -114,218 +114,383 @@ export async function runSeeds(): Promise<void> {
 
     const hId = mainHousehold.id;
 
-    // 4. Create Locations (Hierarchical Tree with Materialized Path)
-    // Level 1: Rooms
-    const [storeRoom] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        name: 'Store Room',
-        kind: 'room',
-        icon: 'archive',
-        color: '#64748b',
-        path: '/store-room/',
-        depth: 0,
-      })
-      .returning();
+    // 4. Create Real-Home Physical Locations (Arbitrary Depth, Materialized Path)
+    // Major Top-Level Areas (Depth 0)
+    // - Small Bedroom
+    // - Big Bedroom
+    // - Hall
+    // - Passage
+    // - Kitchen
+    // - Store Room
+    // - Attic / Roof
 
-    const [kitchen] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        name: 'Kitchen',
-        kind: 'room',
-        icon: 'utensils',
-        color: '#f59e0b',
-        path: '/kitchen/',
-        depth: 0,
-      })
-      .returning();
+    // --- Depth 0: Rooms ---
+    const [smallBedroom] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Small Bedroom',
+      kind: 'room',
+      icon: 'bed-single',
+      color: '#60a5fa',
+      path: '/small-bedroom/',
+      depth: 0,
+      sortOrder: 1,
+    }).returning();
 
-    const [bedroom] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        name: 'Master Bedroom',
-        kind: 'room',
-        icon: 'bed',
-        color: '#3b82f6',
-        path: '/master-bedroom/',
-        depth: 0,
-      })
-      .returning();
+    const [bigBedroom] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Big Bedroom',
+      kind: 'room',
+      icon: 'bed-double',
+      color: '#3b82f6',
+      path: '/big-bedroom/',
+      depth: 0,
+      sortOrder: 2,
+    }).returning();
 
-    const [livingRoom] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        name: 'Living Room',
-        kind: 'room',
-        icon: 'tv',
-        color: '#10b981',
-        path: '/living-room/',
-        depth: 0,
-      })
-      .returning();
+    const [hall] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Hall',
+      kind: 'room',
+      icon: 'sofa',
+      color: '#10b981',
+      path: '/hall/',
+      depth: 0,
+      sortOrder: 3,
+    }).returning();
 
-    if (!storeRoom || !kitchen || !bedroom || !livingRoom) {
-      throw new Error('Failed to create root locations');
+    const [passage] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Passage',
+      kind: 'room',
+      icon: 'footprints',
+      color: '#94a3b8',
+      path: '/passage/',
+      depth: 0,
+      sortOrder: 4,
+    }).returning();
+
+    const [kitchen] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Kitchen',
+      kind: 'room',
+      icon: 'utensils',
+      color: '#f59e0b',
+      path: '/kitchen/',
+      depth: 0,
+      sortOrder: 5,
+    }).returning();
+
+    const [storeRoom] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Store Room',
+      kind: 'room',
+      icon: 'archive',
+      color: '#64748b',
+      path: '/store-room/',
+      depth: 0,
+      sortOrder: 6,
+    }).returning();
+
+    const [atticRoof] = await db.insert(locations).values({
+      householdId: hId,
+      name: 'Attic / Roof',
+      kind: 'room',
+      icon: 'warehouse',
+      color: '#a855f7',
+      path: '/attic-roof/',
+      depth: 0,
+      sortOrder: 7,
+    }).returning();
+
+    if (!smallBedroom || !bigBedroom || !hall || !passage || !kitchen || !storeRoom || !atticRoof) {
+      throw new Error('Failed to create top-level home locations');
     }
 
-    // Level 2 & 3 Locations
-    // Store Room -> Rack 1 & Rack 2
-    const [rack1] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: storeRoom.id,
-        name: 'Rack 1',
-        kind: 'furniture',
-        path: `/store-room/${storeRoom.id}/rack-1/`,
-        depth: 1,
-      })
-      .returning();
+    // --- Depth 1 & 2: Small Bedroom Hierarchy ---
+    // Small Bedroom -> Wardrobe -> Top, Middle, Bottom Shelf
+    const [sbWardrobe] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: smallBedroom.id,
+      name: 'Wardrobe',
+      kind: 'wardrobe',
+      path: `/small-bedroom/${smallBedroom.id}/wardrobe/`,
+      depth: 1,
+    }).returning();
 
-    const [rack2] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: storeRoom.id,
-        name: 'Rack 2',
-        kind: 'furniture',
-        path: `/store-room/${storeRoom.id}/rack-2/`,
-        depth: 1,
-      })
-      .returning();
+    const [sbWardrobeTop] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: sbWardrobe!.id,
+      name: 'Top Shelf',
+      kind: 'shelf',
+      path: `/small-bedroom/${smallBedroom.id}/wardrobe/${sbWardrobe!.id}/top-shelf/`,
+      depth: 2,
+    }).returning();
 
-    if (!rack1 || !rack2) throw new Error('Failed to create store room racks');
-
-    const [rack1Shelf1] = await db
-      .insert(locations)
-      .values({
+    await db.insert(locations).values([
+      {
         householdId: hId,
-        parentId: rack1.id,
-        name: 'Shelf 1 (Top)',
+        parentId: sbWardrobe!.id,
+        name: 'Middle Shelf',
         kind: 'shelf',
-        path: `/store-room/${storeRoom.id}/rack-1/${rack1.id}/shelf-1/`,
+        path: `/small-bedroom/${smallBedroom.id}/wardrobe/${sbWardrobe!.id}/middle-shelf/`,
         depth: 2,
-      })
-      .returning();
-
-    const [rack1Shelf2] = await db
-      .insert(locations)
-      .values({
+      },
+      {
         householdId: hId,
-        parentId: rack1.id,
-        name: 'Shelf 2 (Bottom)',
-        kind: 'shelf',
-        path: `/store-room/${storeRoom.id}/rack-1/${rack1.id}/shelf-2/`,
-        depth: 2,
-      })
-      .returning();
-
-    // Kitchen -> Cabinet 1 & Cabinet 2 -> Shelves
-    const [kitchenCab1] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: kitchen.id,
-        name: 'Cabinet 1 (Lower Pots)',
-        kind: 'furniture',
-        path: `/kitchen/${kitchen.id}/cab-1/`,
-        depth: 1,
-      })
-      .returning();
-
-    const [kitchenCab2] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: kitchen.id,
-        name: 'Cabinet 2 (Upper Crockery)',
-        kind: 'furniture',
-        path: `/kitchen/${kitchen.id}/cab-2/`,
-        depth: 1,
-      })
-      .returning();
-
-    if (!kitchenCab1 || !kitchenCab2) throw new Error('Failed to create kitchen cabinets');
-
-    const [cab2Shelf1] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: kitchenCab2.id,
-        name: 'Shelf 1 (Daily Drinkware)',
-        kind: 'shelf',
-        path: `/kitchen/${kitchen.id}/cab-2/${kitchenCab2.id}/shelf-1/`,
-        depth: 2,
-      })
-      .returning();
-
-    const [cab2Shelf2] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: kitchenCab2.id,
-        name: 'Shelf 2 (Bottles & Mugs)',
-        kind: 'shelf',
-        path: `/kitchen/${kitchen.id}/cab-2/${kitchenCab2.id}/shelf-2/`,
-        depth: 2,
-      })
-      .returning();
-
-    // Bedroom -> Wardrobe (Top & Bottom Shelf) & Desk
-    const [wardrobe] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: bedroom.id,
-        name: 'Wardrobe',
-        kind: 'furniture',
-        icon: 'box',
-        path: `/master-bedroom/${bedroom.id}/wardrobe/`,
-        depth: 1,
-      })
-      .returning();
-
-    const [bedroomDesk] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: bedroom.id,
-        name: 'Study Desk',
-        kind: 'furniture',
-        path: `/master-bedroom/${bedroom.id}/desk/`,
-        depth: 1,
-      })
-      .returning();
-
-    if (!wardrobe || !bedroomDesk) throw new Error('Failed to create wardrobe');
-
-    const [wardrobeTopShelf] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: wardrobe.id,
-        name: 'Top Shelf',
-        kind: 'shelf',
-        path: `/master-bedroom/${bedroom.id}/wardrobe/${wardrobe.id}/top-shelf/`,
-        depth: 2,
-      })
-      .returning();
-
-    const [wardrobeBottomShelf] = await db
-      .insert(locations)
-      .values({
-        householdId: hId,
-        parentId: wardrobe.id,
+        parentId: sbWardrobe!.id,
         name: 'Bottom Shelf',
         kind: 'shelf',
-        path: `/master-bedroom/${bedroom.id}/wardrobe/${wardrobe.id}/bottom-shelf/`,
+        path: `/small-bedroom/${smallBedroom.id}/wardrobe/${sbWardrobe!.id}/bottom-shelf/`,
         depth: 2,
-      })
-      .returning();
+      },
+    ]);
+
+    // Small Bedroom -> Bedside Table -> Drawer 1, Drawer 2
+    const [sbBedsideTable] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: smallBedroom.id,
+      name: 'Bedside Table',
+      kind: 'furniture',
+      path: `/small-bedroom/${smallBedroom.id}/bedside-table/`,
+      depth: 1,
+    }).returning();
+
+    const [sbDrawer1] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: sbBedsideTable!.id,
+      name: 'Drawer 1',
+      kind: 'drawer',
+      path: `/small-bedroom/${smallBedroom.id}/bedside-table/${sbBedsideTable!.id}/drawer-1/`,
+      depth: 2,
+    }).returning();
+
+    await db.insert(locations).values({
+      householdId: hId,
+      parentId: sbBedsideTable!.id,
+      name: 'Drawer 2',
+      kind: 'drawer',
+      path: `/small-bedroom/${smallBedroom.id}/bedside-table/${sbBedsideTable!.id}/drawer-2/`,
+      depth: 2,
+    });
+
+    // --- Depth 1 & 2: Big Bedroom Hierarchy ---
+    // Big Bedroom -> Wardrobe -> Top, Middle, Bottom Shelf
+    const [bbWardrobe] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: bigBedroom.id,
+      name: 'Wardrobe',
+      kind: 'wardrobe',
+      path: `/big-bedroom/${bigBedroom.id}/wardrobe/`,
+      depth: 1,
+    }).returning();
+
+    const [bbWardrobeTop] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: bbWardrobe!.id,
+      name: 'Top Shelf',
+      kind: 'shelf',
+      path: `/big-bedroom/${bigBedroom.id}/wardrobe/${bbWardrobe!.id}/top-shelf/`,
+      depth: 2,
+    }).returning();
+
+    await db.insert(locations).values({
+      householdId: hId,
+      parentId: bbWardrobe!.id,
+      name: 'Middle Shelf',
+      kind: 'shelf',
+      path: `/big-bedroom/${bigBedroom.id}/wardrobe/${bbWardrobe!.id}/middle-shelf/`,
+      depth: 2,
+    });
+
+    const [bbWardrobeBottom] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: bbWardrobe!.id,
+      name: 'Bottom Shelf',
+      kind: 'shelf',
+      path: `/big-bedroom/${bigBedroom.id}/wardrobe/${bbWardrobe!.id}/bottom-shelf/`,
+      depth: 2,
+    }).returning();
+
+    // Big Bedroom -> Bedside Table & Study Desk
+    await db.insert(locations).values({
+      householdId: hId,
+      parentId: bigBedroom.id,
+      name: 'Bedside Table',
+      kind: 'furniture',
+      path: `/big-bedroom/${bigBedroom.id}/bedside-table/`,
+      depth: 1,
+    });
+
+    const [bbStudyDesk] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: bigBedroom.id,
+      name: 'Study Desk',
+      kind: 'furniture',
+      path: `/big-bedroom/${bigBedroom.id}/study-desk/`,
+      depth: 1,
+    }).returning();
+
+    // --- Depth 1 & 2: Hall Hierarchy ---
+    // Hall -> TV Unit -> Shelf 1, Shelf 2
+    const [hallTvUnit] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: hall.id,
+      name: 'TV Unit',
+      kind: 'furniture',
+      path: `/hall/${hall.id}/tv-unit/`,
+      depth: 1,
+    }).returning();
+
+    const [hallTvShelf1] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: hallTvUnit!.id,
+      name: 'Shelf 1',
+      kind: 'shelf',
+      path: `/hall/${hall.id}/tv-unit/${hallTvUnit!.id}/shelf-1/`,
+      depth: 2,
+    }).returning();
+
+    await db.insert(locations).values([
+      {
+        householdId: hId,
+        parentId: hallTvUnit!.id,
+        name: 'Shelf 2',
+        kind: 'shelf',
+        path: `/hall/${hall.id}/tv-unit/${hallTvUnit!.id}/shelf-2/`,
+        depth: 2,
+      },
+      {
+        householdId: hId,
+        parentId: hall.id,
+        name: 'Cabinet',
+        kind: 'cabinet',
+        path: `/hall/${hall.id}/cabinet/`,
+        depth: 1,
+      },
+    ]);
+
+    // --- Depth 1: Passage Hierarchy ---
+    const [passageStorage] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: passage.id,
+      name: 'Storage Area',
+      kind: 'storage_area',
+      path: `/passage/${passage.id}/storage-area/`,
+      depth: 1,
+    }).returning();
+
+    // --- Depth 1 & 2: Kitchen Hierarchy ---
+    // Kitchen -> Cabinet -> Shelf 1, Shelf 2
+    const [kitchenCabinet] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: kitchen.id,
+      name: 'Cabinet',
+      kind: 'cabinet',
+      path: `/kitchen/${kitchen.id}/cabinet/`,
+      depth: 1,
+    }).returning();
+
+    const [kitchenCabShelf1] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: kitchenCabinet!.id,
+      name: 'Shelf 1',
+      kind: 'shelf',
+      path: `/kitchen/${kitchen.id}/cabinet/${kitchenCabinet!.id}/shelf-1/`,
+      depth: 2,
+    }).returning();
+
+    const [kitchenCabShelf2] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: kitchenCabinet!.id,
+      name: 'Shelf 2',
+      kind: 'shelf',
+      path: `/kitchen/${kitchen.id}/cabinet/${kitchenCabinet!.id}/shelf-2/`,
+      depth: 2,
+    }).returning();
+
+    await db.insert(locations).values({
+      householdId: hId,
+      parentId: kitchen.id,
+      name: 'Counter Storage',
+      kind: 'storage_area',
+      path: `/kitchen/${kitchen.id}/counter-storage/`,
+      depth: 1,
+    });
+
+    // --- Depth 1 & 2: Store Room Hierarchy ---
+    // Store Room -> Rack 1 (Shelf 1, Shelf 2) & Rack 2 (Shelf 1, Shelf 2)
+    const [storeRack1] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: storeRoom.id,
+      name: 'Rack 1',
+      kind: 'rack',
+      path: `/store-room/${storeRoom.id}/rack-1/`,
+      depth: 1,
+    }).returning();
+
+    const [storeRack1Shelf1] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: storeRack1!.id,
+      name: 'Shelf 1',
+      kind: 'shelf',
+      path: `/store-room/${storeRoom.id}/rack-1/${storeRack1!.id}/shelf-1/`,
+      depth: 2,
+    }).returning();
+
+    const [storeRack1Shelf2] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: storeRack1!.id,
+      name: 'Shelf 2',
+      kind: 'shelf',
+      path: `/store-room/${storeRoom.id}/rack-1/${storeRack1!.id}/shelf-2/`,
+      depth: 2,
+    }).returning();
+
+    const [storeRack2] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: storeRoom.id,
+      name: 'Rack 2',
+      kind: 'rack',
+      path: `/store-room/${storeRoom.id}/rack-2/`,
+      depth: 1,
+    }).returning();
+
+    const [storeRack2Shelf1] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: storeRack2!.id,
+      name: 'Shelf 1',
+      kind: 'shelf',
+      path: `/store-room/${storeRoom.id}/rack-2/${storeRack2!.id}/shelf-1/`,
+      depth: 2,
+    }).returning();
+
+    await db.insert(locations).values({
+      householdId: hId,
+      parentId: storeRack2!.id,
+      name: 'Shelf 2',
+      kind: 'shelf',
+      path: `/store-room/${storeRoom.id}/rack-2/${storeRack2!.id}/shelf-2/`,
+      depth: 2,
+    });
+
+    // --- Depth 1: Attic / Roof Hierarchy ---
+    const [atticStorage] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: atticRoof.id,
+      name: 'Storage Area',
+      kind: 'storage_area',
+      path: `/attic-roof/${atticRoof.id}/storage-area/`,
+      depth: 1,
+    }).returning();
+
+    const [atticRack] = await db.insert(locations).values({
+      householdId: hId,
+      parentId: atticRoof.id,
+      name: 'Rack',
+      kind: 'rack',
+      path: `/attic-roof/${atticRoof.id}/rack/`,
+      depth: 1,
+    }).returning();
 
     // 5. Create Categories
     const categoryData = [
@@ -337,6 +502,7 @@ export async function runSeeds(): Promise<void> {
       { name: 'Tools & Hardware', icon: 'wrench', color: '#f97316' },
       { name: 'Health & Fitness', icon: 'heart-pulse', color: '#ef4444' },
       { name: 'Home & Living', icon: 'home', color: '#06b6d4' },
+      { name: 'Seasonal & Festive', icon: 'sparkles', color: '#eab308' },
     ];
 
     const insertedCategories = await db
@@ -354,6 +520,8 @@ export async function runSeeds(): Promise<void> {
       { name: 'office', color: '#8b5cf6' },
       { name: 'backup', color: '#f59e0b' },
       { name: 'health', color: '#ec4899' },
+      { name: 'winter', color: '#06b6d4' },
+      { name: 'festive', color: '#eab308' },
     ];
     const insertedTags = await db
       .insert(tags)
@@ -367,7 +535,7 @@ export async function runSeeds(): Promise<void> {
       .values({
         householdId: hId,
         name: 'Coffee Mugs & Tumblers',
-        description: 'All drinkware and artisan coffee mugs',
+        description: 'All drinkware, travel mugs, and artisan coffee mugs',
         color: '#f59e0b',
         icon: 'coffee',
       })
@@ -378,21 +546,22 @@ export async function runSeeds(): Promise<void> {
       .values({
         householdId: hId,
         name: 'Travel Packing Essentials',
-        description: 'Bags, organizers, and portable electronics',
+        description: 'Bags, organizers, and portable essentials',
         color: '#3b82f6',
         icon: 'plane',
       })
       .returning();
 
-    // 8. Create Containers (Items with is_container = true)
-    // Container 1: Large Blue Plastic Bin in Store Room -> Rack 2
-    const [largeBlueBin] = await db
+    // 8. Create Movable Storage Objects as Inventory Items (is_container = true)
+    // Container 1: Large Blue Storage Box placed in:
+    // Big Bedroom -> Wardrobe -> Bottom Shelf
+    const [largeBlueStorageBox] = await db
       .insert(items)
       .values({
         householdId: hId,
-        name: 'Large Blue Plastic Storage Bin',
-        displayName: 'Blue Box A (Large)',
-        description: '60L heavy duty plastic storage container with latching lid',
+        name: 'Large Blue Storage Box (Cello MaxiBox 60L)',
+        displayName: 'Large Blue Storage Box',
+        description: '60L heavy duty plastic storage container with locking handles',
         categoryId: catMap.get('Storage & Containers'),
         brand: 'Cello',
         model: 'MaxiBox 60',
@@ -402,40 +571,41 @@ export async function runSeeds(): Promise<void> {
         totalQuantity: '1',
         unit: 'box',
         isContainer: true,
-        completenessScore: 90,
+        completenessScore: 95,
       })
       .returning();
 
-    // Container 2: Medium Transparent Box in Store Room -> Rack 1 -> Shelf 1
-    const [mediumBox] = await db
+    // Container 2: Small Electronics Box NESTED inside Large Blue Storage Box!
+    const [smallElectronicsBox] = await db
       .insert(items)
       .values({
         householdId: hId,
-        name: 'Medium Transparent Storage Box',
-        displayName: 'Clear Box B (Medium)',
-        description: 'Clear modular storage container',
+        name: 'Small Electronics Box (Mini Cable Caddy)',
+        displayName: 'Small Electronics Box',
+        description: 'Multi-compartment organizer caddy for cables, mice, and adapters',
         categoryId: catMap.get('Storage & Containers'),
-        brand: 'Joyo',
-        color: 'Transparent',
+        color: 'Grey',
         condition: 'like_new',
         status: 'active',
         totalQuantity: '1',
         unit: 'box',
         isContainer: true,
-        completenessScore: 85,
+        completenessScore: 90,
       })
       .returning();
 
-    // Container 3: Small Electronics Organizer Box NESTED inside Medium Transparent Box!
-    const [smallElectronicsBox] = await db
+    // Container 3: Medium Transparent Storage Box placed in:
+    // Store Room -> Rack 1 -> Shelf 1
+    const [mediumStorageBox] = await db
       .insert(items)
       .values({
         householdId: hId,
-        name: 'Small Electronics Organizer Box',
-        displayName: 'Mini Cable Caddy',
-        description: 'Small divider box for cables and accessories',
+        name: 'Medium Transparent Storage Box 30L',
+        displayName: 'Clear Box (Medium)',
+        description: 'Clear plastic box for tools and stationery',
         categoryId: catMap.get('Storage & Containers'),
-        color: 'Grey',
+        brand: 'Joyo',
+        color: 'Transparent',
         condition: 'good',
         status: 'active',
         totalQuantity: '1',
@@ -445,13 +615,14 @@ export async function runSeeds(): Promise<void> {
       })
       .returning();
 
-    // Container 4: Black Travel Duffel Bag placed in Master Bedroom -> Wardrobe -> Top Shelf
-    const [duffelBag] = await db
+    // Container 4: Black Travel Duffel Bag placed in:
+    // Big Bedroom -> Wardrobe -> Top Shelf
+    const [blackDuffelBag] = await db
       .insert(items)
       .values({
         householdId: hId,
-        name: 'Black Travel Duffel Bag 45L',
-        displayName: 'Gym & Travel Duffel',
+        name: 'Wildcraft Black Travel Duffel Bag 45L',
+        displayName: 'Black Duffel Bag',
         categoryId: catMap.get('Bags & Luggage'),
         brand: 'Wildcraft',
         color: 'Black',
@@ -460,59 +631,164 @@ export async function runSeeds(): Promise<void> {
         totalQuantity: '1',
         unit: 'pcs',
         isContainer: true,
-        completenessScore: 80,
+        completenessScore: 85,
       })
       .returning();
 
-    if (!largeBlueBin || !mediumBox || !smallElectronicsBox || !duffelBag) {
-      throw new Error('Failed to create containers');
+    if (!largeBlueStorageBox || !smallElectronicsBox || !mediumStorageBox || !blackDuffelBag) {
+      throw new Error('Failed to create container items');
     }
 
-    // Place the containers physically:
+    // Place containers physically in the real-home hierarchy:
     await db.insert(itemPlacements).values([
-      // Large Blue Bin -> Store Room Rack 2
+      // Large Blue Storage Box -> Big Bedroom -> Wardrobe -> Bottom Shelf
       {
         householdId: hId,
-        itemId: largeBlueBin.id,
-        locationId: rack2.id,
+        itemId: largeBlueStorageBox.id,
+        locationId: bbWardrobeBottom!.id,
         quantity: '1',
+        notes: 'Placed flat on the bottom shelf of the big bedroom wardrobe',
       },
-      // Medium Box -> Store Room Rack 1 Shelf 1
-      {
-        householdId: hId,
-        itemId: mediumBox.id,
-        locationId: rack1Shelf1?.id,
-        quantity: '1',
-      },
-      // Small Electronics Box -> NESTED inside Medium Box!
+      // Small Electronics Box -> NESTED inside Large Blue Storage Box!
       {
         householdId: hId,
         itemId: smallElectronicsBox.id,
-        containerItemId: mediumBox.id, // NESTED CONTAINER!
+        containerItemId: largeBlueStorageBox.id, // NESTED CONTAINER!
         quantity: '1',
-        notes: 'Kept inside the transparent storage box on Shelf 1',
+        notes: 'Kept inside the Large Blue Storage Box',
       },
-      // Duffel Bag -> Master Bedroom Wardrobe Top Shelf
+      // Medium Storage Box -> Store Room -> Rack 1 -> Shelf 1
       {
         householdId: hId,
-        itemId: duffelBag.id,
-        locationId: wardrobeTopShelf?.id,
+        itemId: mediumStorageBox.id,
+        locationId: storeRack1Shelf1!.id,
+        quantity: '1',
+      },
+      // Black Duffel Bag -> Big Bedroom -> Wardrobe -> Top Shelf
+      {
+        householdId: hId,
+        itemId: blackDuffelBag.id,
+        locationId: bbWardrobeTop!.id,
         quantity: '1',
       },
     ]);
 
-    // 9. Create Inventory Items Demonstrating Scenarios:
+    // 9. Create Inventory Items Exercising All Real-Home Scenarios:
 
-    // --- Scenario A: Multiple identical items SPLIT across locations ---
-    // White Ceramic Coffee Mug (Total Qty: 8)
-    // 5 in Kitchen Cabinet 2 Shelf 1, 3 in Large Blue Storage Box!
+    // --- Exact User Scenario: USB Mouse inside Nested Container ---
+    // Physical Path:
+    // USB Mouse -> Small Electronics Box -> Large Blue Storage Box -> Big Bedroom -> Wardrobe -> Bottom Shelf
+    const [usbMouse] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Logitech B100 Optical USB Wired Mouse',
+        displayName: 'USB Mouse',
+        description: 'Standard wired USB computer mouse with optical sensor',
+        categoryId: catMap.get('Electronics & Gadgets'),
+        brand: 'Logitech',
+        model: 'B100',
+        color: 'Black',
+        condition: 'good',
+        status: 'stored',
+        totalQuantity: '2',
+        unit: 'pcs',
+        completenessScore: 95,
+      })
+      .returning();
+
+    if (usbMouse) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: usbMouse.id,
+        containerItemId: smallElectronicsBox.id, // Inside nested container!
+        quantity: '2',
+        notes: 'Spare USB mice in the mini cable caddy',
+      });
+      await db.insert(priceHistory).values({
+        householdId: hId,
+        itemId: usbMouse.id,
+        amountMinor: 37500, // ₹375.00
+        currency: 'INR',
+        type: 'purchase',
+      });
+    }
+
+    // USB-C Cables inside the same Small Electronics Box
+    const [usbCables] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Anker PowerLine III USB-C to USB-C Cable 2m',
+        categoryId: catMap.get('Electronics & Gadgets'),
+        brand: 'Anker',
+        color: 'White',
+        condition: 'new',
+        status: 'stored',
+        totalQuantity: '4',
+        unit: 'pcs',
+        completenessScore: 85,
+      })
+      .returning();
+
+    if (usbCables) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: usbCables.id,
+        containerItemId: smallElectronicsBox.id,
+        quantity: '4',
+      });
+    }
+
+    // --- HealthSense Weight Machine prominent in Big Bedroom Wardrobe Bottom Shelf ---
+    const [weightMachine] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'HealthSense Ultra-Lite PS 126 Digital Personal Weighing Scale',
+        displayName: 'Weight Machine',
+        description: 'High precision digital scale with tempered glass platform and step-on activation',
+        categoryId: catMap.get('Health & Fitness'),
+        brand: 'HealthSense',
+        model: 'PS 126',
+        color: 'Grey',
+        condition: 'like_new',
+        status: 'active',
+        totalQuantity: '1',
+        unit: 'pcs',
+        completenessScore: 100,
+      })
+      .returning();
+
+    if (weightMachine) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: weightMachine.id,
+        locationId: bbWardrobeBottom!.id, // Big Bedroom -> Wardrobe -> Bottom Shelf
+        quantity: '1',
+        notes: 'Kept on bottom wardrobe shelf next to blue storage box',
+      });
+      await db.insert(priceHistory).values({
+        householdId: hId,
+        itemId: weightMachine.id,
+        amountMinor: 149900, // ₹1,499.00
+        currency: 'INR',
+        type: 'purchase',
+      });
+      const healthTag = tagMap.get('health');
+      if (healthTag) {
+        await db.insert(itemTags).values({ householdId: hId, itemId: weightMachine.id, tagId: healthTag });
+      }
+    }
+
+    // --- Split Stock: 8 White Ceramic Coffee Mugs (5 in Kitchen, 3 in Large Blue Storage Box) ---
     const [whiteMugs] = await db
       .insert(items)
       .values({
         householdId: hId,
         name: 'White Ceramic Coffee Mug 350ml',
         displayName: 'Daily White Coffee Mug',
-        description: 'Classic stoneware cylindrical coffee mug',
+        description: 'Stoneware cylindrical ceramic mug',
         categoryId: catMap.get('Kitchen & Dining'),
         brand: 'ClayCraft',
         color: 'White',
@@ -530,61 +806,53 @@ export async function runSeeds(): Promise<void> {
         {
           householdId: hId,
           itemId: whiteMugs.id,
-          locationId: cab2Shelf1?.id, // Kitchen
+          locationId: kitchenCabShelf1!.id, // Kitchen -> Cabinet -> Shelf 1
           quantity: '5',
-          notes: 'Daily use in kitchen',
+          notes: 'Daily mugs in kitchen cabinet',
         },
         {
           householdId: hId,
           itemId: whiteMugs.id,
-          containerItemId: largeBlueBin.id, // Inside Blue Storage Box!
+          containerItemId: largeBlueStorageBox.id, // Inside Large Blue Storage Box!
           quantity: '3',
-          notes: 'Extra guest backup mugs stored in box',
+          notes: 'Spare guest mugs in bedroom storage box',
         },
       ]);
 
-      // Price History (Integer Minor Units: 20000 paise = ₹200.00 purchase, 25000 = ₹250.00 current)
       await db.insert(priceHistory).values([
         {
           householdId: hId,
           itemId: whiteMugs.id,
-          amountMinor: 20000,
+          amountMinor: 20000, // ₹200.00
           currency: 'INR',
           type: 'purchase',
           source: 'Home Centre',
-          date: '2024-03-15',
-          notes: 'Set of mugs purchased during sale',
         },
         {
           householdId: hId,
           itemId: whiteMugs.id,
-          amountMinor: 25000,
+          amountMinor: 25000, // ₹250.00
           currency: 'INR',
           type: 'estimated_value',
-          source: 'Market Estimate',
-          date: '2026-01-10',
+          source: 'Current Market Estimate',
         },
       ]);
 
-      // Image placeholder metadata
-      await db.insert(itemImages).values([
-        {
-          householdId: hId,
-          itemId: whiteMugs.id,
-          cloudinaryPublicId: 'inventory/white_mug_primary_sample',
-          url: 'https://res.cloudinary.com/demo/image/upload/v1/samples/coffee.jpg',
-          secureUrl: 'https://res.cloudinary.com/demo/image/upload/v1/samples/coffee.jpg',
-          width: 800,
-          height: 600,
-          format: 'jpg',
-          bytes: 124500,
-          kind: 'primary',
-          isPrimary: true,
-          altText: 'White ceramic coffee mug on table',
-        },
-      ]);
+      await db.insert(itemImages).values({
+        householdId: hId,
+        itemId: whiteMugs.id,
+        cloudinaryPublicId: 'inventory/white_mug_sample',
+        url: 'https://res.cloudinary.com/demo/image/upload/v1/samples/coffee.jpg',
+        secureUrl: 'https://res.cloudinary.com/demo/image/upload/v1/samples/coffee.jpg',
+        width: 800,
+        height: 600,
+        format: 'jpg',
+        bytes: 124500,
+        kind: 'primary',
+        isPrimary: true,
+        altText: 'White ceramic coffee mug',
+      });
 
-      // Tags & Collection
       const fragileTag = tagMap.get('fragile');
       const dailyTag = tagMap.get('daily-use');
       if (fragileTag) await db.insert(itemTags).values({ householdId: hId, itemId: whiteMugs.id, tagId: fragileTag });
@@ -598,80 +866,13 @@ export async function runSeeds(): Promise<void> {
       }
     }
 
-    // --- Scenario B: Different Variants of similar item ---
-    // Marvel Avengers Mug (Qty: 1)
-    const [marvelMug] = await db
-      .insert(items)
-      .values({
-        householdId: hId,
-        name: 'Marvel Avengers Ceramic Coffee Mug',
-        categoryId: catMap.get('Kitchen & Dining'),
-        variant: 'Iron Man Edition',
-        color: 'Red/Gold',
-        condition: 'like_new',
-        status: 'active',
-        totalQuantity: '1',
-        unit: 'pcs',
-        completenessScore: 85,
-      })
-      .returning();
-
-    if (marvelMug) {
-      await db.insert(itemPlacements).values({
-        householdId: hId,
-        itemId: marvelMug.id,
-        locationId: cab2Shelf1?.id,
-        quantity: '1',
-      });
-      await db.insert(priceHistory).values({
-        householdId: hId,
-        itemId: marvelMug.id,
-        amountMinor: 49900,
-        currency: 'INR',
-        type: 'purchase',
-      });
-    }
-
-    // Matte Black Travel Mug (Qty: 2)
-    const [travelMug] = await db
-      .insert(items)
-      .values({
-        householdId: hId,
-        name: 'Matte Black Insulated Travel Tumbler 500ml',
-        categoryId: catMap.get('Kitchen & Dining'),
-        brand: 'VaccumFlask',
-        color: 'Matte Black',
-        condition: 'good',
-        status: 'active',
-        totalQuantity: '2',
-        unit: 'pcs',
-        completenessScore: 90,
-      })
-      .returning();
-
-    if (travelMug) {
-      await db.insert(itemPlacements).values({
-        householdId: hId,
-        itemId: travelMug.id,
-        locationId: bedroomDesk?.id,
-        quantity: '2',
-      });
-      await db.insert(priceHistory).values({
-        householdId: hId,
-        itemId: travelMug.id,
-        amountMinor: 79900,
-        currency: 'INR',
-        type: 'purchase',
-      });
-    }
-
-    // --- Scenario C: Water Bottles ---
+    // --- Water Bottles: Milton Thermos Flask (Kitchen + Duffel Bag) ---
     const [miltonFlask] = await db
       .insert(items)
       .values({
         householdId: hId,
-        name: 'Milton Thermosteel Flip Lid Water Bottle 1L',
-        description: '24hr hot and cold vacuum insulated flask',
+        name: 'Milton Thermosteel Flip Lid Flask 1L',
+        description: 'Vacuum insulated flask for hot and cold beverages',
         categoryId: catMap.get('Kitchen & Dining'),
         brand: 'Milton',
         color: 'Silver',
@@ -680,7 +881,7 @@ export async function runSeeds(): Promise<void> {
         status: 'active',
         totalQuantity: '2',
         unit: 'bottle',
-        completenessScore: 95,
+        completenessScore: 90,
       })
       .returning();
 
@@ -689,20 +890,20 @@ export async function runSeeds(): Promise<void> {
         {
           householdId: hId,
           itemId: miltonFlask.id,
-          locationId: cab2Shelf2?.id, // Kitchen
+          locationId: kitchenCabShelf2!.id, // Kitchen -> Cabinet -> Shelf 2
           quantity: '1',
         },
         {
           householdId: hId,
           itemId: miltonFlask.id,
-          containerItemId: duffelBag.id, // Inside Travel Duffel Bag!
+          containerItemId: blackDuffelBag.id, // Inside Black Travel Duffel Bag!
           quantity: '1',
-          notes: 'Packed for trips',
+          notes: 'Packed in duffel for trips',
         },
       ]);
     }
 
-    // --- Scenario D: Bags of different types ---
+    // --- Samsonite 28" Trolley Bag in Store Room -> Rack 2 -> Shelf 1 ---
     const [samsoniteTrolley] = await db
       .insert(items)
       .values({
@@ -715,7 +916,7 @@ export async function runSeeds(): Promise<void> {
         status: 'active',
         totalQuantity: '1',
         unit: 'pcs',
-        completenessScore: 85,
+        completenessScore: 90,
       })
       .returning();
 
@@ -723,7 +924,7 @@ export async function runSeeds(): Promise<void> {
       await db.insert(itemPlacements).values({
         householdId: hId,
         itemId: samsoniteTrolley.id,
-        locationId: rack2?.id, // Store Room Rack 2
+        locationId: storeRack2Shelf1!.id,
         quantity: '1',
       });
       await db.insert(priceHistory).values({
@@ -742,12 +943,164 @@ export async function runSeeds(): Promise<void> {
       }
     }
 
-    // --- Scenario E: Diaries / Notebooks inside Container ---
+    // --- Small Bedroom Items: Blankets on Wardrobe Top & Reading Glasses in Bedside Drawer ---
+    const [winterBlanket] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Signature Microfiber Double Bed Warm Blanket',
+        categoryId: catMap.get('Home & Living'),
+        color: 'Maroon',
+        condition: 'good',
+        status: 'stored',
+        totalQuantity: '2',
+        unit: 'set',
+        completenessScore: 80,
+      })
+      .returning();
+
+    if (winterBlanket) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: winterBlanket.id,
+        locationId: sbWardrobeTop!.id, // Small Bedroom -> Wardrobe -> Top Shelf
+        quantity: '2',
+      });
+      const winterTag = tagMap.get('winter');
+      if (winterTag) await db.insert(itemTags).values({ householdId: hId, itemId: winterBlanket.id, tagId: winterTag });
+    }
+
+    const [readingGlasses] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Lenskart Air Flex Lightweight Reading Glasses (+1.5)',
+        categoryId: catMap.get('Health & Fitness'),
+        brand: 'Lenskart',
+        condition: 'like_new',
+        status: 'active',
+        totalQuantity: '1',
+        unit: 'pcs',
+        completenessScore: 85,
+      })
+      .returning();
+
+    if (readingGlasses) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: readingGlasses.id,
+        locationId: sbDrawer1!.id, // Small Bedroom -> Bedside Table -> Drawer 1
+        quantity: '1',
+      });
+    }
+
+    // --- Hall Items: Streaming Remotes on TV Unit Shelf 1 ---
+    const [fireTvRemote] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Amazon Fire TV Stick 4K Remote & HDMI Extender',
+        categoryId: catMap.get('Electronics & Gadgets'),
+        brand: 'Amazon',
+        condition: 'good',
+        status: 'active',
+        totalQuantity: '1',
+        unit: 'pcs',
+        completenessScore: 85,
+      })
+      .returning();
+
+    if (fireTvRemote) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: fireTvRemote.id,
+        locationId: hallTvShelf1!.id, // Hall -> TV Unit -> Shelf 1
+        quantity: '1',
+      });
+    }
+
+    // --- Passage Items: Vacuum Cleaner in Passage Storage Area ---
+    const [vacuumCleaner] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Eureka Forbes Quick Clean DX Vacuum Cleaner',
+        categoryId: catMap.get('Home & Living'),
+        brand: 'Eureka Forbes',
+        color: 'Red/Black',
+        condition: 'good',
+        status: 'active',
+        totalQuantity: '1',
+        unit: 'pcs',
+        completenessScore: 85,
+      })
+      .returning();
+
+    if (vacuumCleaner) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: vacuumCleaner.id,
+        locationId: passageStorage!.id, // Passage -> Storage Area
+        quantity: '1',
+      });
+    }
+
+    // --- Attic / Roof Items: Festive Lights in Storage Area & Camping Lantern on Rack ---
+    const [diwaliLights] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Warm White Waterproof LED Fairy String Lights 50m',
+        categoryId: catMap.get('Seasonal & Festive'),
+        condition: 'good',
+        status: 'stored',
+        totalQuantity: '4',
+        unit: 'pack',
+        completenessScore: 85,
+      })
+      .returning();
+
+    if (diwaliLights) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: diwaliLights.id,
+        locationId: atticStorage!.id, // Attic / Roof -> Storage Area
+        quantity: '4',
+      });
+      const festiveTag = tagMap.get('festive');
+      if (festiveTag) await db.insert(itemTags).values({ householdId: hId, itemId: diwaliLights.id, tagId: festiveTag });
+    }
+
+    const [campingLantern] = await db
+      .insert(items)
+      .values({
+        householdId: hId,
+        name: 'Coleman Multi-Panel Rechargeable LED Camping Lantern',
+        categoryId: catMap.get('Home & Living'),
+        brand: 'Coleman',
+        condition: 'good',
+        status: 'stored',
+        totalQuantity: '1',
+        unit: 'pcs',
+        completenessScore: 80,
+      })
+      .returning();
+
+    if (campingLantern) {
+      await db.insert(itemPlacements).values({
+        householdId: hId,
+        itemId: campingLantern.id,
+        locationId: atticRack!.id, // Attic / Roof -> Rack
+        quantity: '1',
+      });
+    }
+
+    // --- Store Room Items: Moleskine Notebooks on Shelf 2 ---
     const [moleskineJournal] = await db
       .insert(items)
       .values({
         householdId: hId,
-        name: 'Moleskine Classic Ruled Hardcover Notebook - Large',
+        name: 'Moleskine Classic Hardcover Ruled Notebook - Large',
         categoryId: catMap.get('Books & Stationery'),
         brand: 'Moleskine',
         color: 'Black',
@@ -760,17 +1113,15 @@ export async function runSeeds(): Promise<void> {
       .returning();
 
     if (moleskineJournal) {
-      // Placed inside Large Blue Storage Bin
       await db.insert(itemPlacements).values({
         householdId: hId,
         itemId: moleskineJournal.id,
-        containerItemId: largeBlueBin.id,
+        locationId: storeRack1Shelf2!.id, // Store Room -> Rack 1 -> Shelf 2
         quantity: '3',
       });
     }
 
-    // --- Scenario F: Electronics & Accessories inside NESTED Container ---
-    // Logitech MX Master 3S Mouse on Desk
+    // --- Performance Mouse on Big Bedroom Study Desk ---
     const [mxMasterMouse] = await db
       .insert(items)
       .values({
@@ -792,7 +1143,7 @@ export async function runSeeds(): Promise<void> {
       await db.insert(itemPlacements).values({
         householdId: hId,
         itemId: mxMasterMouse.id,
-        locationId: bedroomDesk?.id,
+        locationId: bbStudyDesk!.id, // Big Bedroom -> Study Desk
         quantity: '1',
       });
       await db.insert(priceHistory).values({
@@ -804,99 +1155,8 @@ export async function runSeeds(): Promise<void> {
       });
     }
 
-    // Backup Mouse stored inside NESTED CONTAINER (Small Electronics Box inside Medium Box)
-    const [backupMouse] = await db
-      .insert(items)
-      .values({
-        householdId: hId,
-        name: 'Logitech B100 Optical USB Wired Mouse (Backup)',
-        categoryId: catMap.get('Electronics & Gadgets'),
-        brand: 'Logitech',
-        model: 'B100',
-        color: 'Black',
-        condition: 'good',
-        status: 'stored',
-        totalQuantity: '2',
-        unit: 'pcs',
-        completenessScore: 85,
-      })
-      .returning();
-
-    if (backupMouse) {
-      await db.insert(itemPlacements).values({
-        householdId: hId,
-        itemId: backupMouse.id,
-        containerItemId: smallElectronicsBox.id, // Inside nested container!
-        quantity: '2',
-        notes: 'Backup mice in electronics caddy',
-      });
-    }
-
-    // USB-C Cables inside NESTED CONTAINER
-    const [usbCables] = await db
-      .insert(items)
-      .values({
-        householdId: hId,
-        name: 'Anker PowerLine III USB-C to USB-C Fast Charging Cable 2m',
-        categoryId: catMap.get('Electronics & Gadgets'),
-        brand: 'Anker',
-        color: 'White',
-        condition: 'new',
-        status: 'stored',
-        totalQuantity: '4',
-        unit: 'pcs',
-        completenessScore: 85,
-      })
-      .returning();
-
-    if (usbCables) {
-      await db.insert(itemPlacements).values({
-        householdId: hId,
-        itemId: usbCables.id,
-        containerItemId: smallElectronicsBox.id, // Inside nested container!
-        quantity: '4',
-      });
-    }
-
-    // --- Scenario G: First-Class "Where is it?" Weight Machine ---
-    const [weightMachine] = await db
-      .insert(items)
-      .values({
-        householdId: hId,
-        name: 'HealthSense Ultra-Lite PS 126 Digital Personal Weighing Machine',
-        displayName: 'Bathroom Weight Machine',
-        description: 'High precision digital bathroom scale with step-on technology',
-        categoryId: catMap.get('Health & Fitness'),
-        brand: 'HealthSense',
-        model: 'PS 126',
-        color: 'Grey',
-        condition: 'like_new',
-        status: 'active',
-        totalQuantity: '1',
-        unit: 'pcs',
-        completenessScore: 95,
-      })
-      .returning();
-
-    if (weightMachine) {
-      await db.insert(itemPlacements).values({
-        householdId: hId,
-        itemId: weightMachine.id,
-        locationId: wardrobeBottomShelf?.id,
-        quantity: '1',
-        notes: 'Kept flat on bottom wardrobe shelf',
-      });
-      await db.insert(priceHistory).values({
-        householdId: hId,
-        itemId: weightMachine.id,
-        amountMinor: 149900, // ₹1,499.00
-        currency: 'INR',
-        type: 'purchase',
-      });
-    }
-
-    // --- Scenario H: Legitimate Unplaced Items (Quick Capture / Unsorted) ---
-    // Philips Emergency Flashlight (Total: 1, Placements: 0)
+    // --- Legitimate Unplaced Items (Quick Capture / Unsorted) ---
+    // Philips Rechargeable Emergency Lantern (Total: 1, 0 Placements)
     await db.insert(items).values({
       householdId: hId,
       name: 'Philips Ojas Rechargeable Emergency LED Lantern',
@@ -906,11 +1166,10 @@ export async function runSeeds(): Promise<void> {
       unit: 'pcs',
       condition: 'good',
       status: 'active',
-      completenessScore: 40, // Low completeness: no placements!
-      // NO PLACEMENTS! Valid unplaced state!
+      completenessScore: 40,
     });
 
-    // Brass Candle Stand (Total: 2, Placements: 0)
+    // Vintage Brass Candle Stand (Total: 2, 0 Placements)
     await db.insert(items).values({
       householdId: hId,
       name: 'Vintage Engraved Brass Candle Holders',
@@ -918,59 +1177,10 @@ export async function runSeeds(): Promise<void> {
       unit: 'pair',
       condition: 'good',
       status: 'active',
-      completenessScore: 30, // Missing category, missing photos, unplaced!
+      completenessScore: 30,
     });
 
-    // --- Scenario I: Items missing photos ---
-    const [hammer] = await db
-      .insert(items)
-      .values({
-        householdId: hId,
-        name: 'Stanley 16oz Steel Curved Claw Hammer',
-        categoryId: catMap.get('Tools & Hardware'),
-        brand: 'Stanley',
-        condition: 'good',
-        status: 'stored',
-        totalQuantity: '1',
-        unit: 'pcs',
-        completenessScore: 60,
-      })
-      .returning();
-
-    if (hammer) {
-      await db.insert(itemPlacements).values({
-        householdId: hId,
-        itemId: hammer.id,
-        locationId: rack1Shelf2?.id,
-        quantity: '1',
-      });
-    }
-
-    // --- Scenario J: Items missing prices ---
-    const [tableRunner] = await db
-      .insert(items)
-      .values({
-        householdId: hId,
-        name: 'Handcrafted Cotton Embroidered Dining Table Runner',
-        categoryId: catMap.get('Home & Living'),
-        condition: 'good',
-        status: 'active',
-        totalQuantity: '1',
-        unit: 'pcs',
-        completenessScore: 50, // Missing price & photo
-      })
-      .returning();
-
-    if (tableRunner) {
-      await db.insert(itemPlacements).values({
-        householdId: hId,
-        itemId: tableRunner.id,
-        locationId: livingRoom.id,
-        quantity: '1',
-      });
-    }
-
-    // --- Scenario K: Loaned Item with Overdue/Active Loan ---
+    // --- Loaned Item: Sony A7 IV Camera ---
     const [camera] = await db
       .insert(items)
       .values({
@@ -997,7 +1207,7 @@ export async function runSeeds(): Promise<void> {
         lentAt: '2026-09-01',
         dueAt: '2026-09-15',
         status: 'active',
-        notes: 'Lent for photography workshop with 24-70mm lens',
+        notes: 'Lent for photography workshop with 24-70mm GM lens',
         createdBy: ownerUser.id,
       });
 
@@ -1010,7 +1220,7 @@ export async function runSeeds(): Promise<void> {
       });
     }
 
-    // 10. Log Initial Audit Trail Entries
+    // 10. Audit Trail
     await db.insert(auditLog).values([
       {
         householdId: hId,
@@ -1023,14 +1233,14 @@ export async function runSeeds(): Promise<void> {
       {
         householdId: hId,
         userId: ownerUser.id,
-        entityType: 'item',
-        entityId: whiteMugs?.id || hId,
+        entityType: 'location',
+        entityId: bigBedroom.id,
         action: 'created',
-        metadata: { name: 'White Ceramic Coffee Mug 350ml', totalQuantity: 8 },
+        metadata: { name: 'Big Bedroom', kind: 'room' },
       },
     ]);
 
-    logger.info('✅ Seed data insertion completed successfully.');
+    logger.info('✅ Real-home household seed data insertion completed successfully.');
   } catch (error) {
     logger.error({ error }, '❌ Seed data insertion failed');
     throw error;

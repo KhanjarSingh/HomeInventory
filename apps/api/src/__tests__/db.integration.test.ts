@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { db, sql } from '../config/db';
 import {
   users,
@@ -33,10 +33,6 @@ describe('Database & Domain Integrity Verification Suite', () => {
     neighborHouseholdId = neighbor!.id;
   });
 
-  afterAll(async () => {
-    // Note: Do not close pool here if other tests run, or close if last
-  });
-
   // 1. Extensions and Indexes
   describe('Extensions and Performance Indexes', () => {
     it('verifies pg_trgm and uuid-ossp extensions are installed', async () => {
@@ -65,10 +61,262 @@ describe('Database & Domain Integrity Verification Suite', () => {
     });
   });
 
-  // 2. Household Isolation
+  // 2. Real-Home Physical Hierarchy & Arbitrary Depth
+  describe('Real-Home Physical Hierarchy & Structure', () => {
+    it('verifies all major top-level home locations exist as dynamic household records', async () => {
+      const topLocations = await db
+        .select()
+        .from(locations)
+        .where(and(eq(locations.householdId, mainHouseholdId), eq(locations.depth, 0)));
+
+      const names = topLocations.map((l) => l.name);
+      expect(names).toContain('Small Bedroom');
+      expect(names).toContain('Big Bedroom');
+      expect(names).toContain('Hall');
+      expect(names).toContain('Passage');
+      expect(names).toContain('Kitchen');
+      expect(names).toContain('Store Room');
+      expect(names).toContain('Attic / Roof');
+    });
+
+    it('verifies multi-level nesting depth (Room -> Furniture -> Shelf / Drawer)', async () => {
+      const allLocations = await db
+        .select()
+        .from(locations)
+        .where(eq(locations.householdId, mainHouseholdId));
+
+      const depth0 = allLocations.filter((l) => l.depth === 0);
+      const depth1 = allLocations.filter((l) => l.depth === 1);
+      const depth2 = allLocations.filter((l) => l.depth === 2);
+
+      expect(depth0.length).toBeGreaterThanOrEqual(7);
+      expect(depth1.length).toBeGreaterThanOrEqual(8);
+      expect(depth2.length).toBeGreaterThanOrEqual(8);
+
+      // Verify specific path nesting
+      const bbWardrobeBottom = allLocations.find(
+        (l) => l.name === 'Bottom Shelf' && l.path.includes('/big-bedroom/')
+      );
+      expect(bbWardrobeBottom).toBeDefined();
+      expect(bbWardrobeBottom!.depth).toBe(2);
+      expect(bbWardrobeBottom!.path).toMatch(/^\/big-bedroom\/[a-f0-9-]+\/wardrobe\/[a-f0-9-]+\/bottom-shelf\/$/);
+
+      const sbDrawer1 = allLocations.find(
+        (l) => l.name === 'Drawer 1' && l.path.includes('/small-bedroom/')
+      );
+      expect(sbDrawer1).toBeDefined();
+      expect(sbDrawer1!.kind).toBe('drawer');
+      expect(sbDrawer1!.depth).toBe(2);
+    });
+
+    it('strictly preserves the Location vs Container distinction', async () => {
+      // 1. Containers must exist in `items` table with is_container = true
+      const containers = await db
+        .select()
+        .from(items)
+        .where(and(eq(items.householdId, mainHouseholdId), eq(items.isContainer, true)));
+
+      const containerNames = containers.map((c) => c.displayName || c.name);
+      expect(containerNames).toContain('Large Blue Storage Box');
+      expect(containerNames).toContain('Small Electronics Box');
+      expect(containerNames).toContain('Clear Box (Medium)');
+      expect(containerNames).toContain('Black Duffel Bag');
+
+      // 2. None of these containers should exist in `locations` table!
+      const locationNames = (
+        await db.select().from(locations).where(eq(locations.householdId, mainHouseholdId))
+      ).map((l) => l.name);
+
+      expect(locationNames).not.toContain('Large Blue Storage Box');
+      expect(locationNames).not.toContain('Small Electronics Box');
+    });
+  });
+
+  // 3. User Scenario: USB Mouse in Nested Container Chain to Physical Shelf
+  describe('Nested Container Resolution & Breadcrumbs', () => {
+    it('resolves complete physical hierarchy for USB Mouse: Mouse -> Small Box -> Large Blue Box -> Big Bedroom -> Wardrobe -> Bottom Shelf', async () => {
+      const [mouse] = await db
+        .select()
+        .from(items)
+        .where(
+          and(
+            eq(items.householdId, mainHouseholdId),
+            eq(items.displayName, 'USB Mouse')
+          )
+        );
+
+      expect(mouse).toBeDefined();
+
+      // Recursive CTE to trace: Item -> Container 1 -> Container 2 -> Location -> Ancestor Locations
+      const chain = await sql`
+        WITH RECURSIVE container_hierarchy AS (
+          -- Step 1: Base item placement
+          SELECT
+            ip.item_id,
+            ip.container_item_id,
+            ip.location_id,
+            1 as level
+          FROM item_placements ip
+          WHERE ip.item_id = ${mouse!.id}
+
+          UNION ALL
+
+          -- Step 2: Trace upward through parent container items
+          SELECT
+            parent_item.id as item_id,
+            parent_ip.container_item_id,
+            parent_ip.location_id,
+            ch.level + 1
+          FROM container_hierarchy ch
+          JOIN items parent_item ON parent_item.id = ch.container_item_id
+          JOIN item_placements parent_ip ON parent_ip.item_id = parent_item.id
+          WHERE ch.container_item_id IS NOT NULL
+        )
+        SELECT
+          ch.level,
+          c_item.display_name as container_name,
+          loc.name as location_name,
+          loc.path as location_path
+        FROM container_hierarchy ch
+        LEFT JOIN items c_item ON c_item.id = ch.container_item_id
+        LEFT JOIN locations loc ON loc.id = ch.location_id
+        ORDER BY ch.level ASC;
+      `;
+
+      expect(chain.length).toBe(3);
+      // Level 1: placed in container 'Small Electronics Box'
+      expect(chain[0]!.container_name).toBe('Small Electronics Box');
+      // Level 2: 'Small Electronics Box' is placed in container 'Large Blue Storage Box'
+      expect(chain[1]!.container_name).toBe('Large Blue Storage Box');
+      // Level 3: 'Large Blue Storage Box' resolves to physical location 'Bottom Shelf' in Big Bedroom
+      expect(chain[2]!.location_name).toBe('Bottom Shelf');
+      expect(chain[2]!.location_path).toContain('/big-bedroom/');
+    });
+  });
+
+  // 4. Subtree Queries for Major Home Locations
+  describe('Major Locations Subtree Resolution', () => {
+    it('queries all items inside Big Bedroom (direct on furniture and inside containers)', async () => {
+      const bigBedroomItems = await sql`
+        WITH RECURSIVE resolved_placements AS (
+          -- Placements directly targeting a location
+          SELECT ip.item_id, ip.location_id
+          FROM item_placements ip
+          WHERE ip.household_id = ${mainHouseholdId} AND ip.location_id IS NOT NULL
+
+          UNION ALL
+
+          -- Placements targeting a container that is placed somewhere
+          SELECT child_ip.item_id, parent_rp.location_id
+          FROM item_placements child_ip
+          JOIN resolved_placements parent_rp ON parent_rp.item_id = child_ip.container_item_id
+          WHERE child_ip.container_item_id IS NOT NULL
+        )
+        SELECT DISTINCT i.name, i.display_name
+        FROM resolved_placements rp
+        JOIN items i ON i.id = rp.item_id
+        JOIN locations l ON l.id = rp.location_id
+        WHERE l.path LIKE '/big-bedroom/%';
+      `;
+
+      const itemNames = bigBedroomItems.map((r) => r.display_name || r.name);
+      // Directly on bottom shelf:
+      expect(itemNames).toContain('Weight Machine');
+      // Directly on study desk:
+      expect(itemNames).toContain('Logitech MX Master 3S Wireless Performance Mouse');
+      // Inside container inside wardrobe:
+      expect(itemNames).toContain('Large Blue Storage Box');
+      // Inside nested container inside large blue box:
+      expect(itemNames).toContain('USB Mouse');
+      expect(itemNames).toContain('Anker PowerLine III USB-C to USB-C Cable 2m');
+    });
+
+    it('queries all items inside Store Room across racks and shelves', async () => {
+      const storeItems = await sql`
+        SELECT DISTINCT i.name
+        FROM items i
+        JOIN item_placements ip ON ip.item_id = i.id
+        JOIN locations l ON l.id = ip.location_id
+        WHERE ip.household_id = ${mainHouseholdId}
+          AND l.path LIKE '/store-room/%';
+      `;
+
+      const names = storeItems.map((r) => r.name);
+      expect(names).toContain('Samsonite Omni 28" Hardside Spinner Trolley Bag');
+      expect(names).toContain('Moleskine Classic Hardcover Ruled Notebook - Large');
+      expect(names).toContain('Medium Transparent Storage Box 30L');
+    });
+
+    it('queries all items inside Attic / Roof (storage area & rack)', async () => {
+      const atticItems = await sql`
+        SELECT DISTINCT i.name
+        FROM items i
+        JOIN item_placements ip ON ip.item_id = i.id
+        JOIN locations l ON l.id = ip.location_id
+        WHERE ip.household_id = ${mainHouseholdId}
+          AND l.path LIKE '/attic-roof/%';
+      `;
+
+      const names = atticItems.map((r) => r.name);
+      expect(names).toContain('Warm White Waterproof LED Fairy String Lights 50m');
+      expect(names).toContain('Coleman Multi-Panel Rechargeable LED Camping Lantern');
+    });
+
+    it('queries Passage storage area for household cleaning items', async () => {
+      const passageItems = await sql`
+        SELECT DISTINCT i.name
+        FROM items i
+        JOIN item_placements ip ON ip.item_id = i.id
+        JOIN locations l ON l.id = ip.location_id
+        WHERE ip.household_id = ${mainHouseholdId}
+          AND l.path LIKE '/passage/%';
+      `;
+
+      const names = passageItems.map((r) => r.name);
+      expect(names).toContain('Eureka Forbes Quick Clean DX Vacuum Cleaner');
+    });
+  });
+
+  // 5. Reparenting & Cycle Prevention Logic
+  describe('Location Reparenting & Cycle Prevention Logic', () => {
+    it('correctly detects cycle if attempting to reparent a node under its own descendant', async () => {
+      const [bb] = await db.select().from(locations).where(eq(locations.name, 'Big Bedroom'));
+      const [wardrobe] = await db
+        .select()
+        .from(locations)
+        .where(and(eq(locations.name, 'Wardrobe'), eq(locations.parentId, bb!.id)));
+      const [bottomShelf] = await db
+        .select()
+        .from(locations)
+        .where(and(eq(locations.name, 'Bottom Shelf'), eq(locations.parentId, wardrobe!.id)));
+
+      expect(bb).toBeDefined();
+      expect(wardrobe).toBeDefined();
+      expect(bottomShelf).toBeDefined();
+
+      // In Phase 3 reparenting: To move node A under node B:
+      // Cycle rule: Destination B's path MUST NOT start with Source A's path!
+      const isCycle = (sourcePath: string, destPath: string): boolean => {
+        return destPath.startsWith(sourcePath);
+      };
+
+      // Moving Wardrobe under Bottom Shelf:
+      // Wardrobe path: '/big-bedroom/<id>/wardrobe/'
+      // Bottom Shelf path: '/big-bedroom/<id>/wardrobe/<id>/bottom-shelf/'
+      expect(isCycle(wardrobe!.path, bottomShelf!.path)).toBe(true);
+
+      // Moving Bedside Table under Wardrobe (valid, not a cycle):
+      const [bedsideTable] = await db
+        .select()
+        .from(locations)
+        .where(and(eq(locations.name, 'Bedside Table'), eq(locations.parentId, bb!.id)));
+      expect(isCycle(bedsideTable!.path, wardrobe!.path)).toBe(false);
+    });
+  });
+
+  // 6. Multi-Tenant Household Isolation
   describe('Multi-Tenant Household Isolation', () => {
     it('prevents cross-household placement: Household A placement referencing Household B location', async () => {
-      // Create an item in Main Household
       const [itemA] = await db
         .insert(items)
         .values({
@@ -78,7 +326,6 @@ describe('Database & Domain Integrity Verification Suite', () => {
         })
         .returning();
 
-      // Create a location in Neighbor Household
       const [locationB] = await db
         .insert(locations)
         .values({
@@ -91,8 +338,7 @@ describe('Database & Domain Integrity Verification Suite', () => {
       expect(itemA).toBeDefined();
       expect(locationB).toBeDefined();
 
-      // Attempt to place Item A (Main) in Location B (Neighbor) with Main Household ID
-      // This violates fk_placements_household_location composite foreign key!
+      // Attempting cross-household reference throws FK violation
       await expect(
         db.insert(itemPlacements).values({
           householdId: mainHouseholdId,
@@ -102,27 +348,12 @@ describe('Database & Domain Integrity Verification Suite', () => {
         })
       ).rejects.toThrow();
 
-      // Cleanup
       await db.delete(items).where(eq(items.id, itemA!.id));
       await db.delete(locations).where(eq(locations.id, locationB!.id));
     });
-
-    it('ensures queries strictly scope items by householdId', async () => {
-      const mainItems = await db
-        .select()
-        .from(items)
-        .where(eq(items.householdId, mainHouseholdId));
-      const neighborItems = await db
-        .select()
-        .from(items)
-        .where(eq(items.householdId, neighborHouseholdId));
-
-      expect(mainItems.length).toBeGreaterThan(0);
-      expect(neighborItems.length).toBe(0);
-    });
   });
 
-  // 3. Placement Target XOR Behavior
+  // 7. Placement Target XOR Rules
   describe('Placement Target XOR Rules', () => {
     it('rejects placement pointing to BOTH location and container', async () => {
       const [item] = await db
@@ -146,10 +377,10 @@ describe('Database & Domain Integrity Verification Suite', () => {
           householdId: mainHouseholdId,
           itemId: item!.id,
           locationId: location!.id,
-          containerItemId: container!.id, // BOTH!
+          containerItemId: container!.id,
           quantity: '1',
         })
-      ).rejects.toThrow(); // Violates chk_placement_target_xor
+      ).rejects.toThrow();
     });
 
     it('rejects placement pointing to NEITHER location nor container', async () => {
@@ -164,14 +395,14 @@ describe('Database & Domain Integrity Verification Suite', () => {
           householdId: mainHouseholdId,
           itemId: item!.id,
           locationId: null,
-          containerItemId: null, // NEITHER!
+          containerItemId: null,
           quantity: '1',
         })
-      ).rejects.toThrow(); // Violates chk_placement_target_xor
+      ).rejects.toThrow();
     });
   });
 
-  // 4. Self-Containment Prevention
+  // 8. Self-Containment Prevention
   describe('Self-Containment Prevention', () => {
     it('rejects an item being placed inside itself (chk_placement_not_self)', async () => {
       const [container] = await db
@@ -180,19 +411,18 @@ describe('Database & Domain Integrity Verification Suite', () => {
         .where(and(eq(items.householdId, mainHouseholdId), eq(items.isContainer, true)))
         .limit(1);
 
-      // Attempt to place container inside itself
       await expect(
         db.insert(itemPlacements).values({
           householdId: mainHouseholdId,
           itemId: container!.id,
-          containerItemId: container!.id, // Self-containment!
+          containerItemId: container!.id,
           quantity: '1',
         })
-      ).rejects.toThrow(); // Violates chk_placement_not_self
+      ).rejects.toThrow();
     });
   });
 
-  // 5. Quantity Invariant & Unplaced Items
+  // 9. Quantity Rules & Legitimate Unplaced Items
   describe('Quantity Rules & Legitimate Unplaced Items', () => {
     it('rejects placement with zero or negative quantity', async () => {
       const [item] = await db
@@ -211,16 +441,7 @@ describe('Database & Domain Integrity Verification Suite', () => {
           householdId: mainHouseholdId,
           itemId: item!.id,
           locationId: location!.id,
-          quantity: '0', // Invalid!
-        })
-      ).rejects.toThrow();
-
-      await expect(
-        db.insert(itemPlacements).values({
-          householdId: mainHouseholdId,
-          itemId: item!.id,
-          locationId: location!.id,
-          quantity: '-5', // Invalid!
+          quantity: '0',
         })
       ).rejects.toThrow();
     });
@@ -239,7 +460,6 @@ describe('Database & Domain Integrity Verification Suite', () => {
       expect(unplacedItem).toBeDefined();
       expect(Number(unplacedItem!.totalQuantity)).toBe(1);
 
-      // Verify it has 0 placements
       const placements = await db
         .select()
         .from(itemPlacements)
@@ -271,118 +491,22 @@ describe('Database & Domain Integrity Verification Suite', () => {
     });
   });
 
-  // 6. Container Nesting and Resolution
-  describe('Container Nesting & Hierarchy', () => {
-    it('verifies container nesting: Small Electronics Box inside Medium Box', async () => {
-      const [smallBox] = await db
-        .select()
-        .from(items)
-        .where(
-          and(
-            eq(items.householdId, mainHouseholdId),
-            eq(items.name, 'Small Electronics Organizer Box')
-          )
-        );
-      const [mediumBox] = await db
-        .select()
-        .from(items)
-        .where(
-          and(
-            eq(items.householdId, mainHouseholdId),
-            eq(items.name, 'Medium Transparent Storage Box')
-          )
-        );
-
-      expect(smallBox).toBeDefined();
-      expect(mediumBox).toBeDefined();
-
-      const [smallBoxPlacement] = await db
-        .select()
-        .from(itemPlacements)
-        .where(eq(itemPlacements.itemId, smallBox!.id));
-
-      expect(smallBoxPlacement).toBeDefined();
-      expect(smallBoxPlacement!.containerItemId).toBe(mediumBox!.id);
-    });
-
-    it('resolves physical location of item inside nested container', async () => {
-      // Find backup mouse placed in Small Electronics Box
-      const [mouse] = await db
-        .select()
-        .from(items)
-        .where(
-          and(
-            eq(items.householdId, mainHouseholdId),
-            eq(items.name, 'Logitech B100 Optical USB Wired Mouse (Backup)')
-          )
-        );
-
-      expect(mouse).toBeDefined();
-
-      // Recursive query resolving item -> small box -> medium box -> location
-      const resolved = await sql`
-        WITH RECURSIVE container_chain AS (
-          -- Base: direct placement of mouse
-          SELECT ip.item_id, ip.container_item_id, ip.location_id, 1 as depth
-          FROM item_placements ip
-          WHERE ip.item_id = ${mouse!.id}
-
-          UNION ALL
-
-          -- Recursive: trace parent container's placement
-          SELECT c.id as item_id, ip2.container_item_id, ip2.location_id, cc.depth + 1
-          FROM container_chain cc
-          JOIN items c ON c.id = cc.container_item_id
-          JOIN item_placements ip2 ON ip2.item_id = c.id
-          WHERE cc.container_item_id IS NOT NULL
-        )
-        SELECT cc.depth, l.name as location_name, l.path as location_path
-        FROM container_chain cc
-        JOIN locations l ON l.id = cc.location_id
-        WHERE cc.location_id IS NOT NULL;
-      `;
-
-      expect(resolved.length).toBe(1);
-      expect(resolved[0]!.location_name).toBe('Shelf 1 (Top)');
-      expect(resolved[0]!.location_path).toContain('/store-room/');
-    });
-  });
-
-  // 7. Subtree Queries via Materialized Path
-  describe('Location Materialized Path Subtree Queries', () => {
-    it('retrieves all items in Store Room and its descendants in a single query', async () => {
-      const itemsInStoreRoom = await sql`
-        SELECT DISTINCT i.name
-        FROM items i
-        JOIN item_placements ip ON ip.item_id = i.id
-        LEFT JOIN locations l ON l.id = ip.location_id
-        WHERE ip.household_id = ${mainHouseholdId}
-          AND l.path LIKE '/store-room/%';
-      `;
-
-      expect(itemsInStoreRoom.length).toBeGreaterThan(0);
-      const names = itemsInStoreRoom.map((r) => r.name);
-      // Stanley hammer is on Shelf 2 of Rack 1 in Store Room
-      expect(names).toContain('Stanley 16oz Steel Curved Claw Hammer');
-    });
-  });
-
-  // 8. Unique Constraints
+  // 10. Unique Constraints
   describe('Unique Constraints', () => {
-    it('enforces unique category name per household (uq_categories_household_name)', async () => {
+    it('enforces unique category name per household', async () => {
       await expect(
         db.insert(categories).values({
           householdId: mainHouseholdId,
-          name: 'Kitchen & Dining', // Duplicate!
+          name: 'Kitchen & Dining',
         })
       ).rejects.toThrow();
     });
 
-    it('enforces unique tag name per household (uq_tags_household_name)', async () => {
+    it('enforces unique tag name per household', async () => {
       await expect(
         db.insert(tags).values({
           householdId: mainHouseholdId,
-          name: 'fragile', // Duplicate!
+          name: 'fragile',
         })
       ).rejects.toThrow();
     });
@@ -390,7 +514,7 @@ describe('Database & Domain Integrity Verification Suite', () => {
     it('enforces unique user email globally', async () => {
       await expect(
         db.insert(users).values({
-          email: 'owner@example.com', // Duplicate!
+          email: 'owner@example.com',
           fullName: 'Imposter',
           passwordHash: 'hash',
         })

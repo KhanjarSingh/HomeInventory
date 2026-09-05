@@ -44,9 +44,13 @@ export type ItemCondition = (typeof ITEM_CONDITIONS)[number];
 export const LOCATION_KINDS = [
   'room',
   'furniture',
+  'wardrobe',
+  'cabinet',
   'shelf',
-  'bin',
+  'drawer',
+  'rack',
   'storage_area',
+  'bin',
   'other',
 ] as const;
 export type LocationKind = (typeof LOCATION_KINDS)[number];
