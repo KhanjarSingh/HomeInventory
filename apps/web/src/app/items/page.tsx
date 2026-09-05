@@ -5,8 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { fetchApi, ApiClientError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
-import type { ItemSummaryDto, CategoryDto } from '@home-inventory/shared';
+import type { ItemSummaryDto, CategoryDto, ItemDetailDto } from '@home-inventory/shared';
 import { BreadcrumbBadge } from '../../components/placements/BreadcrumbBadge';
+import { PlacementModal } from '../../components/placements/PlacementModal';
 import {
   Package,
   Camera,
@@ -29,7 +30,26 @@ export default function ItemsListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingQuantityIds, setPendingQuantityIds] = useState<Set<string>>(new Set());
+  const [isResolvingPlacementId, setIsResolvingPlacementId] = useState<string | null>(null);
   const canEdit = activeHousehold?.role === 'owner' || activeHousehold?.role === 'editor';
+
+  // Placement Modal state
+  const [placementModal, setPlacementModal] = useState<{
+    isOpen: boolean;
+    mode: 'place' | 'move';
+    item: { id: string; name: string; isContainer?: boolean; unit?: string; maxQuantity?: number };
+    currentPlacement?: {
+      id: string;
+      locationId: string | null;
+      containerItemId: string | null;
+      quantity: number;
+      notes?: string | null;
+    };
+  }>({
+    isOpen: false,
+    mode: 'place',
+    item: { id: '', name: '' },
+  });
 
   // Filters
   const [search, setSearch] = useState('');
@@ -91,6 +111,56 @@ export default function ItemsListPage() {
         next.delete(item.id);
         return next;
       });
+    }
+  };
+
+  const handleEditLocationClick = async (item: ItemSummaryDto) => {
+    const isUnplaced = item.unplacedQuantity > 0 && item.placedQuantity === 0;
+
+    if (isUnplaced) {
+      setPlacementModal({
+        isOpen: true,
+        mode: 'place',
+        item: {
+          id: item.id,
+          name: item.name,
+          isContainer: item.isContainer,
+          unit: item.unit,
+          maxQuantity: item.totalQuantity,
+        },
+      });
+      return;
+    }
+
+    // Placed items need the specific placement id, which isn't in the list summary.
+    setIsResolvingPlacementId(item.id);
+    try {
+      const res = await fetchApi<ItemDetailDto>(`/items/${item.id}`);
+      const primaryPlacement = res.data.resolvedPlacements?.[0];
+      setPlacementModal({
+        isOpen: true,
+        mode: primaryPlacement ? 'move' : 'place',
+        item: {
+          id: item.id,
+          name: item.name,
+          isContainer: item.isContainer,
+          unit: item.unit,
+          maxQuantity: primaryPlacement ? primaryPlacement.quantity : item.totalQuantity,
+        },
+        currentPlacement: primaryPlacement
+          ? {
+              id: primaryPlacement.id,
+              locationId: primaryPlacement.locationId,
+              containerItemId: primaryPlacement.containerItemId,
+              quantity: primaryPlacement.quantity,
+              notes: primaryPlacement.notes,
+            }
+          : undefined,
+      });
+    } catch {
+      // Silently ignore; user can still navigate into the item to move it
+    } finally {
+      setIsResolvingPlacementId(null);
     }
   };
 
@@ -306,17 +376,39 @@ export default function ItemsListPage() {
               </div>
 
               {/* Physical Breadcrumbs Footer */}
-              <div className="mt-auto px-3.5 py-2 bg-slate-50/70 border-t border-slate-100 text-[11px]">
+              <div className="mt-auto px-3.5 py-2 bg-slate-50/70 border-t border-slate-100 text-[11px] flex items-center gap-2">
                 <BreadcrumbBadge
                   breadcrumbs={item.breadcrumbs}
                   breadcrumbString={item.breadcrumbString}
                   size="sm"
+                  onEditClick={
+                    canEdit
+                      ? (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleEditLocationClick(item);
+                        }
+                      : undefined
+                  }
                 />
+                {isResolvingPlacementId === item.id && (
+                  <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                )}
               </div>
             </Link>
           ))}
         </div>
       )}
+
+      {/* Placement / Move Modal */}
+      <PlacementModal
+        isOpen={placementModal.isOpen}
+        onClose={() => setPlacementModal((prev) => ({ ...prev, isOpen: false }))}
+        onSuccess={loadData}
+        mode={placementModal.mode}
+        item={placementModal.item}
+        currentPlacement={placementModal.currentPlacement}
+      />
 
       {/* Floating Action Button (FAB) for Mobile Quick Add */}
       <div className="fixed bottom-5 right-5 sm:hidden z-30">

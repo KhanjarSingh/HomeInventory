@@ -9,6 +9,7 @@ interface BreadcrumbBadgeProps {
   breadcrumbString?: string;
   className?: string;
   size?: 'sm' | 'md';
+  onEditClick?: (e: React.MouseEvent) => void;
 }
 
 export function BreadcrumbBadge({
@@ -16,6 +17,7 @@ export function BreadcrumbBadge({
   breadcrumbString,
   className = '',
   size = 'md',
+  onEditClick,
 }: BreadcrumbBadgeProps) {
   // If structured breadcrumbs are not provided, fall back to parsing breadcrumbString
   const segments: PhysicalBreadcrumbSegmentDto[] =
@@ -35,11 +37,16 @@ export function BreadcrumbBadge({
       : [{ type: 'unplaced', id: 'unplaced', name: 'Unplaced' }];
 
   const isSmall = size === 'sm';
+  const Wrapper = onEditClick ? 'button' : 'nav';
 
   return (
-    <nav
-      aria-label="Physical Breadcrumb"
-      className={`flex flex-wrap items-center gap-1.5 ${className}`}
+    <Wrapper
+      {...(onEditClick
+        ? { type: 'button', onClick: onEditClick, title: 'Click to edit physical location' }
+        : { 'aria-label': 'Physical Breadcrumb' })}
+      className={`flex flex-wrap items-center gap-1.5 ${
+        onEditClick ? 'cursor-pointer hover:opacity-80 transition' : ''
+      } ${className}`}
     >
       {segments.map((seg, idx) => {
         const isLast = idx === segments.length - 1;
@@ -89,6 +96,6 @@ export function BreadcrumbBadge({
           </React.Fragment>
         );
       })}
-    </nav>
+    </Wrapper>
   );
 }
