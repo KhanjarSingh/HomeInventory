@@ -17,7 +17,12 @@ import {
   REFRESH_TOKEN_EXPIRY_MS,
 } from './tokens';
 import { AppError } from '../../utils/errors';
-import type { RegisterInput, LoginInput, HouseholdRole } from '@home-inventory/shared';
+import type {
+  RegisterInput,
+  LoginInput,
+  HouseholdRole,
+  HouseholdProfilesResponseDto,
+} from '@home-inventory/shared';
 
 const DEFAULT_CATEGORIES = [
   { name: 'Kitchen & Dining', icon: 'coffee', color: '#f59e0b' },
@@ -218,6 +223,72 @@ export class AuthService {
       },
       accessToken,
       refreshToken: rawRefreshToken,
+    };
+  }
+
+  static async getProfiles(): Promise<HouseholdProfilesResponseDto> {
+    const [household] = await db
+      .select()
+      .from(households)
+      .where(eq(households.name, "Tandalwade's Residency"))
+      .limit(1);
+
+    const targetHousehold = household || (await db.select().from(households).limit(1))[0];
+
+    if (!targetHousehold) {
+      return {
+        householdId: '',
+        householdName: "Tandalwade's Residency",
+        profiles: [],
+      };
+    }
+
+    const members = await db
+      .select({
+        id: users.id,
+        fullName: users.fullName,
+        email: users.email,
+        role: householdMembers.role,
+        avatarUrl: users.avatarUrl,
+      })
+      .from(householdMembers)
+      .innerJoin(users, eq(users.id, householdMembers.userId))
+      .where(eq(householdMembers.householdId, targetHousehold.id));
+
+    const nameOrder: Record<string, number> = {
+      vithal: 1,
+      shailaja: 2,
+      rutuja: 3,
+      parth: 4,
+    };
+
+    const sorted = members
+      .filter((m) => !m.fullName.toLowerCase().includes('viewer') && !m.email.includes('neighbor'))
+      .sort((a, b) => {
+        const aKey = a.fullName.toLowerCase().split(' ')[0] || '';
+        const bKey = b.fullName.toLowerCase().split(' ')[0] || '';
+        return (nameOrder[aKey] || 99) - (nameOrder[bKey] || 99);
+      });
+
+    return {
+      householdId: targetHousehold.id,
+      householdName: targetHousehold.name,
+      profiles: sorted.map((m) => {
+        const parts = m.fullName.trim().split(' ');
+        const initials =
+          parts.length >= 2
+            ? `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase()
+            : m.fullName.slice(0, 2).toUpperCase();
+
+        return {
+          id: m.id,
+          fullName: m.fullName,
+          email: m.email,
+          role: m.role as HouseholdRole,
+          initials,
+          avatarUrl: m.avatarUrl,
+        };
+      }),
     };
   }
 

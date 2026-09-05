@@ -239,16 +239,16 @@ describe('Phase 2: Authentication & Household Isolation Test Suite', () => {
     let neighborHousehold: string;
 
     beforeAll(async () => {
-      // Login seeded Owner
+      // Login seeded Owner (Vithal Tandalwade - 1973)
       const ownerRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'owner@example.com', password: 'Password123!' });
+        .send({ email: 'vithal@tandalwade.local', password: '1973' });
       ownerToken = extractCookie(ownerRes, 'accessToken');
 
-      // Login seeded Editor
+      // Login seeded Editor (Parth Tandalwade - 2007)
       const editorRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'editor@example.com', password: 'Password123!' });
+        .send({ email: 'parth@tandalwade.local', password: '2007' });
       editorToken = extractCookie(editorRes, 'accessToken');
 
       // Login seeded Viewer
@@ -314,7 +314,96 @@ describe('Phase 2: Authentication & Household Isolation Test Suite', () => {
     });
   });
 
-  // 6. Logout
+  // 6. Family Profile PIN Unlock Verification
+  describe('Family Profile PIN Unlock Verification', () => {
+    it('GET /api/v1/auth/profiles returns the 4 family profiles with household name and no credentials', async () => {
+      const res = await request(app).get('/api/v1/auth/profiles');
+      expect(res.status).toBe(200);
+      expect(res.body.data.householdName).toBe("Tandalwade's Residency");
+      expect(res.body.data.profiles.length).toBe(4);
+
+      const names = res.body.data.profiles.map((p: any) => p.fullName);
+      expect(names).toEqual([
+        'Vithal Tandalwade',
+        'Shailaja Tandalwade',
+        'Rutuja Tandalwade',
+        'Parth Tandalwade',
+      ]);
+
+      // Verify no password hash or secret is exposed
+      for (const p of res.body.data.profiles) {
+        expect(p).not.toHaveProperty('password');
+        expect(p).not.toHaveProperty('passwordHash');
+        expect(p).not.toHaveProperty('pin');
+        expect(p).toHaveProperty('initials');
+      }
+    });
+
+    it('Vithal Tandalwade can unlock with birth year 1973 (Owner role)', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'vithal@tandalwade.local', password: '1973' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.user.fullName).toBe('Vithal Tandalwade');
+      expect(res.body.data.household.role).toBe('owner');
+      expect(res.body.data.household.name).toBe("Tandalwade's Residency");
+
+      const cookies = (res.headers['set-cookie'] as unknown as string[]).join('; ');
+      expect(cookies).toContain('accessToken=');
+      expect(cookies).toContain('refreshToken=');
+    });
+
+    it('Shailaja Tandalwade can unlock with birth year 1979 (Owner role)', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'shailaja@tandalwade.local', password: '1979' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.user.fullName).toBe('Shailaja Tandalwade');
+      expect(res.body.data.household.role).toBe('owner');
+    });
+
+    it('Rutuja Tandalwade can unlock with birth year 2003 (Editor role)', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'rutuja@tandalwade.local', password: '2003' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.user.fullName).toBe('Rutuja Tandalwade');
+      expect(res.body.data.household.role).toBe('editor');
+    });
+
+    it('Parth Tandalwade can unlock with birth year 2007 (Editor role)', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'parth@tandalwade.local', password: '2007' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.user.fullName).toBe('Parth Tandalwade');
+      expect(res.body.data.household.role).toBe('editor');
+    });
+
+    it('rejects incorrect unlock PIN with 401 UNAUTHORIZED', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'parth@tandalwade.local', password: '1999' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('rejects another profile PIN on a different profile (Vithal PIN on Parth profile)', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'parth@tandalwade.local', password: '1973' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+  });
+
+  // 7. Logout
   describe('Logout (POST /api/v1/auth/logout)', () => {
     it('clears auth cookies and invalidates session', async () => {
       const res = await request(app)

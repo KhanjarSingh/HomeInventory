@@ -46,54 +46,73 @@ export async function runSeeds(): Promise<void> {
     await db.delete(households);
     await db.delete(users);
 
-    const defaultPasswordHash = await argon2.hash('Password123!');
-
     // 2. Create Users
-    const [ownerUser] = await db
+    // Family Profiles for Tandalwade's Residency
+    const [vithalUser] = await db
       .insert(users)
       .values({
-        email: 'owner@example.com',
-        passwordHash: defaultPasswordHash,
-        fullName: 'Aarav Sharma (Owner)',
+        email: 'vithal@tandalwade.local',
+        passwordHash: await argon2.hash('1973'),
+        fullName: 'Vithal Tandalwade',
       })
       .returning();
 
-    const [editorUser] = await db
+    const [shailajaUser] = await db
       .insert(users)
       .values({
-        email: 'editor@example.com',
-        passwordHash: defaultPasswordHash,
-        fullName: 'Priya Sharma (Editor)',
+        email: 'shailaja@tandalwade.local',
+        passwordHash: await argon2.hash('1979'),
+        fullName: 'Shailaja Tandalwade',
       })
       .returning();
 
-    const [viewerUser] = await db
+    const [rutujaUser] = await db
       .insert(users)
       .values({
-        email: 'viewer@example.com',
-        passwordHash: defaultPasswordHash,
-        fullName: 'Rohan Sharma (Viewer)',
+        email: 'rutuja@tandalwade.local',
+        passwordHash: await argon2.hash('2003'),
+        fullName: 'Rutuja Tandalwade',
       })
       .returning();
 
-    // Isolated user in second household (for multi-tenant isolation tests)
+    const [parthUser] = await db
+      .insert(users)
+      .values({
+        email: 'parth@tandalwade.local',
+        passwordHash: await argon2.hash('2007'),
+        fullName: 'Parth Tandalwade',
+      })
+      .returning();
+
+    // Isolated neighbor user & test viewer in secondary household (for RBAC & isolation tests)
     const [neighborUser] = await db
       .insert(users)
       .values({
         email: 'neighbor@example.com',
-        passwordHash: defaultPasswordHash,
+        passwordHash: await argon2.hash('Password123!'),
         fullName: 'Vikram Patel',
       })
       .returning();
 
-    if (!ownerUser || !editorUser || !viewerUser || !neighborUser) {
+    const [testViewerUser] = await db
+      .insert(users)
+      .values({
+        email: 'viewer@example.com',
+        passwordHash: await argon2.hash('Password123!'),
+        fullName: 'Test Viewer',
+      })
+      .returning();
+
+    if (!vithalUser || !shailajaUser || !rutujaUser || !parthUser || !neighborUser || !testViewerUser) {
       throw new Error('Failed to create users');
     }
+
+    const ownerUser = vithalUser;
 
     // 3. Create Households & Members
     const [mainHousehold] = await db
       .insert(households)
-      .values({ name: 'The Sharma Residence' })
+      .values({ name: "Tandalwade's Residency" })
       .returning();
 
     const [neighborHousehold] = await db
@@ -105,12 +124,25 @@ export async function runSeeds(): Promise<void> {
       throw new Error('Failed to create households');
     }
 
+    // Default household: Vithal (Owner), Shailaja (Owner), Rutuja (Editor), Parth (Editor). NO viewer profile.
     await db.insert(householdMembers).values([
-      { householdId: mainHousehold.id, userId: ownerUser.id, role: 'owner' },
-      { householdId: mainHousehold.id, userId: editorUser.id, role: 'editor' },
-      { householdId: mainHousehold.id, userId: viewerUser.id, role: 'viewer' },
+      { householdId: mainHousehold.id, userId: vithalUser.id, role: 'owner' },
+      { householdId: mainHousehold.id, userId: shailajaUser.id, role: 'owner' },
+      { householdId: mainHousehold.id, userId: rutujaUser.id, role: 'editor' },
+      { householdId: mainHousehold.id, userId: parthUser.id, role: 'editor' },
       { householdId: neighborHousehold.id, userId: neighborUser.id, role: 'owner' },
+      { householdId: neighborHousehold.id, userId: testViewerUser.id, role: 'viewer' },
     ]);
+
+    // Also insert a dummy location in neighborHousehold so read-only viewer queries succeed
+    await db.insert(locations).values({
+      householdId: neighborHousehold.id,
+      name: 'Neighbor Living Room',
+      kind: 'room',
+      path: '/neighbor-living-room/',
+      depth: 0,
+      sortOrder: 1,
+    });
 
     const hId = mainHousehold.id;
 
@@ -1228,7 +1260,7 @@ export async function runSeeds(): Promise<void> {
         entityType: 'household',
         entityId: hId,
         action: 'created',
-        metadata: { name: 'The Sharma Residence' },
+        metadata: { name: "Tandalwade's Residency" },
       },
       {
         householdId: hId,

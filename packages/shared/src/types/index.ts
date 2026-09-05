@@ -24,6 +24,21 @@ export interface HouseholdDto {
   createdAt: string;
 }
 
+export interface FamilyProfileDto {
+  id: string;
+  fullName: string;
+  email: string;
+  role: HouseholdRole;
+  initials: string;
+  avatarUrl?: string | null;
+}
+
+export interface HouseholdProfilesResponseDto {
+  householdId: string;
+  householdName: string;
+  profiles: FamilyProfileDto[];
+}
+
 export interface LocationDto {
   id: string;
   householdId: string;

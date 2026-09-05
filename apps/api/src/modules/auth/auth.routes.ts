@@ -33,6 +33,22 @@ authRouter.post('/register', async (req: Request, res: Response, next: NextFunct
   }
 });
 
+// GET /api/v1/auth/profiles
+authRouter.get('/profiles', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await AuthService.getProfiles();
+    const response: ApiSuccessResponse<typeof result> = {
+      data: result,
+      meta: {
+        requestId: req.id,
+      },
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/v1/auth/login
 authRouter.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {

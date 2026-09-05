@@ -20,7 +20,7 @@ describe('Database & Domain Integrity Verification Suite', () => {
     const [main] = await db
       .select()
       .from(households)
-      .where(eq(households.name, 'The Sharma Residence'));
+      .where(eq(households.name, "Tandalwade's Residency"));
     const [neighbor] = await db
       .select()
       .from(households)
@@ -522,7 +522,7 @@ describe('Database & Domain Integrity Verification Suite', () => {
     it('enforces unique user email globally', async () => {
       await expect(
         db.insert(users).values({
-          email: 'owner@example.com',
+          email: 'vithal@tandalwade.local',
           fullName: 'Imposter',
           passwordHash: 'hash',
         })
