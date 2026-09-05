@@ -301,11 +301,11 @@ export default function LocationDetailPage() {
         )}
       </div>
 
-      {/* Subtree Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-            Direct Items
+            Items
           </div>
           <div className="text-2xl font-black text-slate-900">{summary.directItemCount}</div>
           <p className="text-[11px] text-slate-400 mt-0.5">Stored right here</p>
@@ -313,26 +313,10 @@ export default function LocationDetailPage() {
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-            Subtree Items
-          </div>
-          <div className="text-2xl font-black text-purple-600">{summary.subtreeItemCount}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Includes all nested shelves & boxes</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-            Direct Storage Boxes
+            Storage Boxes
           </div>
           <div className="text-2xl font-black text-amber-600">{summary.directContainerCount}</div>
           <p className="text-[11px] text-slate-400 mt-0.5">Boxes placed here</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-            Subtree Boxes
-          </div>
-          <div className="text-2xl font-black text-emerald-600">{summary.subtreeContainerCount}</div>
-          <p className="text-[11px] text-slate-400 mt-0.5">All boxes in this branch</p>
         </div>
       </div>
 

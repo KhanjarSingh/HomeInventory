@@ -33,6 +33,16 @@ import {
   X,
 } from 'lucide-react';
 
+const MAX_PHOTOS = 10;
+
+interface PhotoSlot {
+  file: File;
+  previewUrl: string;
+  uploaded: ConfirmImageUploadInput | null;
+  isUploading: boolean;
+  error: string | null;
+}
+
 export default function QuickCapturePage() {
   const router = useRouter();
   const { activeHousehold, isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -42,11 +52,7 @@ export default function QuickCapturePage() {
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Photo & Upload state
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<ConfirmImageUploadInput | null>(null);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoSlot[]>([]);
 
   // Item form fields
   const [name, setName] = useState('');
@@ -104,44 +110,55 @@ export default function QuickCapturePage() {
       });
   }, [isAuthenticated]);
 
-  // Handle Photo selection from Camera or Gallery
+  // Handle Photo selection from Camera or Gallery (supports multi-select, up to MAX_PHOTOS)
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    setPhotoError(null);
-    setSelectedFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
+    const remainingSlots = MAX_PHOTOS - photos.length;
+    const filesToAdd = files.slice(0, remainingSlots);
 
-    // Upload to Cloudinary in background
-    setIsUploadingPhoto(true);
-    try {
-      const result = await uploadImageToCloudinary(file);
-      setUploadedImage(result);
-    } catch (err: any) {
-      setPhotoError(err.message || 'Failed to upload photo');
-    } finally {
-      setIsUploadingPhoto(false);
-    }
+    const newSlots: PhotoSlot[] = filesToAdd.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      uploaded: null,
+      isUploading: true,
+      error: null,
+    }));
+
+    setPhotos((prev) => [...prev, ...newSlots]);
+
+    // Upload each new photo to Cloudinary in background
+    await Promise.all(
+      newSlots.map(async (slot) => {
+        try {
+          const result = await uploadImageToCloudinary(slot.file);
+          setPhotos((prev) =>
+            prev.map((p) =>
+              p === slot ? { ...p, uploaded: result, isUploading: false } : p
+            )
+          );
+        } catch (err: any) {
+          setPhotos((prev) =>
+            prev.map((p) =>
+              p === slot
+                ? { ...p, isUploading: false, error: err.message || 'Failed to upload photo' }
+                : p
+            )
+          );
+        }
+      })
+    );
   };
 
-  const handleRetakePhoto = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setUploadedImage(null);
-    setPhotoError(null);
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
-    if (galleryInputRef.current) galleryInputRef.current.value = '';
+  const handleRemovePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Reset form to add another item consecutively
   const handleAddAnother = () => {
     setCreatedItem(null);
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setUploadedImage(null);
-    setPhotoError(null);
+    setPhotos([]);
     setName('');
     setQuantity(1);
     setPrice('');
@@ -182,8 +199,12 @@ export default function QuickCapturePage() {
         }
       }
 
-      if (uploadedImage) {
-        payload.initialImage = uploadedImage;
+      const uploadedPhotos = photos
+        .map((p) => p.uploaded)
+        .filter((u): u is ConfirmImageUploadInput => u !== null);
+
+      if (uploadedPhotos.length > 0) {
+        payload.initialImage = uploadedPhotos[0];
       }
 
       if (destinationType === 'location' && selectedLocationId) {
@@ -196,6 +217,18 @@ export default function QuickCapturePage() {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+
+      // Attach any remaining photos beyond the first
+      if (uploadedPhotos.length > 1 && res.data) {
+        await Promise.all(
+          uploadedPhotos.slice(1).map((img) =>
+            fetchApi(`/items/${res.data.id}/images`, {
+              method: 'POST',
+              body: JSON.stringify(img),
+            })
+          )
+        );
+      }
 
       setCreatedItem(res.data);
     } catch (err: any) {
@@ -317,6 +350,7 @@ export default function QuickCapturePage() {
         ref={galleryInputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handlePhotoSelect}
         className="hidden"
       />
@@ -350,11 +384,16 @@ export default function QuickCapturePage() {
 
         {/* Section 1: Camera Photo Trigger / Preview */}
         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs space-y-3">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Step 1: Item Photo
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Step 1: Item Photos
+            </label>
+            <span className="text-[11px] text-slate-400 font-medium">
+              {photos.length}/{MAX_PHOTOS}
+            </span>
+          </div>
 
-          {!previewUrl ? (
+          {photos.length === 0 ? (
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -379,48 +418,79 @@ export default function QuickCapturePage() {
               </button>
             </div>
           ) : (
-            <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 group">
-              <div className="relative w-full h-56 sm:h-64">
-                <Image
-                  src={previewUrl}
-                  alt="Item capture preview"
-                  fill
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
-
-              {/* Uploading progress indicator */}
-              {isUploadingPhoto && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2">
-                  <Loader2 className="w-7 h-7 animate-spin text-blue-400" />
-                  <span className="text-xs font-semibold">Uploading to Cloudinary...</span>
-                </div>
-              )}
-
-              {/* Retake Button Overlay */}
-              <div className="absolute top-2 right-2">
-                <button
-                  type="button"
-                  onClick={handleRetakePhoto}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/70 hover:bg-black/90 text-white text-xs font-semibold rounded-full backdrop-blur-xs transition min-h-[36px]"
+            <div className="grid grid-cols-3 gap-2.5">
+              {photos.map((photo, idx) => (
+                <div
+                  key={photo.previewUrl}
+                  className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 group aspect-square"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Retake</span>
-                </button>
-              </div>
+                  <Image
+                    src={photo.previewUrl}
+                    alt={`Item photo ${idx + 1}`}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
 
-              {uploadedImage && !isUploadingPhoto && (
-                <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600/90 text-white text-[11px] font-bold rounded-full backdrop-blur-xs">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Photo Ready</span>
+                  {photo.isUploading && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                    </div>
+                  )}
+
+                  {photo.error && (
+                    <div className="absolute inset-0 bg-rose-900/70 flex items-center justify-center p-1">
+                      <AlertTriangle className="w-5 h-5 text-rose-200" />
+                    </div>
+                  )}
+
+                  {photo.uploaded && !photo.isUploading && (
+                    <div className="absolute bottom-1 left-1 p-0.5 bg-emerald-600/90 text-white rounded-full">
+                      <CheckCircle2 className="w-3 h-3" />
+                    </div>
+                  )}
+
+                  {idx === 0 && (
+                    <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-blue-600/90 text-white text-[9px] font-bold rounded-full">
+                      Cover
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(idx)}
+                    className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-black/90 text-white rounded-full transition"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+
+              {photos.length < MAX_PHOTOS && (
+                <div className="grid grid-cols-1 gap-1.5 aspect-square">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex items-center justify-center bg-blue-50/80 hover:bg-blue-100 text-blue-700 border-2 border-dashed border-blue-300 rounded-xl transition active:scale-95"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-700 border-2 border-dashed border-slate-300 rounded-xl transition active:scale-95"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {photoError && (
-            <p className="text-[11px] text-rose-600 italic">{photoError}</p>
+          {photos.some((p) => p.error) && (
+            <p className="text-[11px] text-rose-600 italic">
+              {photos.find((p) => p.error)?.error}
+            </p>
           )}
         </div>
 
@@ -657,7 +727,7 @@ export default function QuickCapturePage() {
           <div className="max-w-md mx-auto">
             <button
               type="submit"
-              disabled={isSaving || isUploadingPhoto}
+              disabled={isSaving || photos.some((p) => p.isUploading)}
               className="w-full py-4 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-lg hover:shadow-xl transition disabled:opacity-50 min-h-[52px] flex items-center justify-center gap-2 active:scale-98"
             >
               {isSaving ? (
@@ -665,10 +735,10 @@ export default function QuickCapturePage() {
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Saving Item...</span>
                 </>
-              ) : isUploadingPhoto ? (
+              ) : photos.some((p) => p.isUploading) ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Uploading Photo...</span>
+                  <span>Uploading Photos...</span>
                 </>
               ) : (
                 <>
